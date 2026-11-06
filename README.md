@@ -1,332 +1,245 @@
 # Torque Tool Network
 
-Three-part proof-of-concept system:
+Proof-of-concept system that tightens every bolt on a flange at once. Each
+tool unit reads a load cell under its bolt and switches its wrench off at the
+target preload; a laptop dashboard runs the sequence and saves a report.
 
-1. `target_monitor_wifi/target_monitor_wifi.ino`
-   - Flash one copy to every individual tool ESP32-C3.
-   - Change `TOOL_ID` so every physical tool has a unique ID.
-   - The tool performs tare, HX711 sampling, MAD filtering, relay pulse control,
-     and target cutoff locally.
-   - ESP-NOW is used for commands and telemetry.
+    Browser (static/index.html)
+          |  WebSocket / REST
+    dashboard.py  (laptop)
+          |  USB Serial, 115200 baud
+    tool_network_controller.ino  (ESP32-C3 on the laptop)
+          |  ESP-NOW broadcast
+    target_monitor_wifi.ino  (one ESP32-C3 per tool: TOOL_01, TOOL_02, ...)
 
-2. `tool_network_controller/tool_network_controller.ino`
-   - Flash this to the ESP32-C3 that remains connected to the laptop by USB.
-   - It discovers tool ESP32-C3 units over ESP-NOW.
-   - It routes commands to individual tools and forwards their status to the
-     laptop over USB Serial.
-   - Current table size: 20 tools.
+Load-cell sampling, target cutoff and the safety stops all run on the tool, so
+a dropped radio link cannot leave a wrench running.
 
-3. `laptop_controller/laptop_controller.py`
-   - Runs on the laptop.
-   - Uses `pyserial` to communicate with the Tool Network Controller.
-   - Includes a command-line interface for initial testing.
-   - The `ToolNetworkController` Python class is intended to be imported by a
-     future graphical UI.
+## Folder layout
 
-## Architecture
+| Path | What it is |
+|------|------------|
+| `target_monitor_wifi/target_monitor_wifi.ino` | Tool firmware (HX711 + 2 drive relays) |
+| `tool_network_controller/tool_network_controller.ino` | Gateway firmware (ESP-NOW to USB Serial) |
+| `laptop_controller/dashboard.py` | Web dashboard and tightening sequence |
+| `laptop_controller/laptop_controller.py` | Serial API (`ToolNetworkController`) and text CLI |
+| `laptop_controller/simulated_controller.py` | Fake controller and tools for running without hardware |
+| `laptop_controller/simulate_ideal.py` | Simulation where every bolt reaches target |
+| `laptop_controller/bolt_calc.py` | Target tension and torque lookup (API 6A Tables H.1 / H.2) |
+| `laptop_controller/xlsx_report.py` | Excel report writer (standard library only) |
+| `laptop_controller/flange_profiles.json` | 71 API 6A flanges (6B and 6BX) plus 2 bench rigs |
+| `laptop_controller/bolt_profiles.json` | Stud ratings, stress options, friction factors |
+| `laptop_controller/static/index.html` | Tablet-style UI |
+| `laptop_controller/run_scenarios/` | Double-click `.bat` launchers for Windows |
+| `laptop_controller/reports/` | Saved run reports |
 
-    Laptop UI / Python
-           |
-        USB Serial
-           |
-    Tool Network Controller ESP32-C3
-           |
-         ESP-NOW
-       /    |    \
-    TOOL_01 TOOL_02 TOOL_03 ...
+## Setup
 
-Critical load-cell and relay control stays on each individual tool. The laptop
-does not need to maintain a real-time wireless control loop.
+**Arduino:** ESP32 Arduino core (WiFi and ESP-NOW come with it) on both
+boards, plus the HX711 library for the tool. Use the same core version on both.
 
-## Arduino dependencies
+**Each tool:** set a unique `TOOL_ID` (`"TOOL_01"`, `"TOOL_02"`, ...) before
+flashing. Pins: HX711 DOUT 2 / SCK 3, relays on GPIO 1 and 0 (active-LOW).
 
-Tool firmware:
-- ESP32 Arduino core
-- HX711 library
-- WiFi / ESP-NOW supplied by the ESP32 Arduino core
+**Calibration:** `N_PER_COUNT = 0.19975` N per count, worked out from the
+datasheets (CF-816 load cell 0.69936 mV/V at 300 kN, HX711 gain 128). It must
+match `DEFAULT_N_PER_COUNT` in `dashboard.py` and the `--n-per-count` default.
 
-Controller firmware:
-- ESP32 Arduino core
-- WiFi / ESP-NOW supplied by the ESP32 Arduino core
+**Laptop:** Python 3.10+, then in `laptop_controller/`:
 
-Use compatible ESP32 Arduino core versions on both types of ESP32-C3.
+    pip install -r requirements.txt    # pyserial, fastapi, uvicorn
 
-## Configure each tool
+Only one program can hold the COM port: close the Arduino Serial Monitor first.
 
-Before flashing each individual tool, edit:
+## Running
 
-    const char TOOL_ID[] = "TOOL_01";
+    python dashboard.py --port COM5               # real tools
+    python dashboard.py --port COM5 --bench-target 1500
+    python dashboard.py --sim 12                  # 12 simulated tools
+    python simulate_ideal.py                      # 32 simulated tools, all reach target
+    python laptop_controller.py --port COM5       # text CLI, no dashboard
 
-Use a unique value such as `TOOL_01`, `TOOL_02`, etc.
+The dashboard opens http://localhost:8000. If `--port` is left out, the
+program picks the only ESP32/USB-looking port or asks.
 
-Also set the real load-cell calibration factor:
+Dashboard options: `--timeout S` (time a bolt may take, default 120 s; capped
+at 30 s in simulation), `--bench-target N`, `--n-per-count`, `--baud`,
+`--http-port`, `--no-browser`. Simulation options (with `--sim N`):
+`--sim-stall P` (chance a bolt stalls below target, default 0.03),
+`--sim-overshoot P` (chance it overshoots the max), `--sim-loosen F` (how much
+tightening one bolt loosens the others, e.g. 0.3).
 
-    const double N_PER_COUNT = 0.205;
+`run_scenarios/` wraps these as `.bat` files (setup, three simulations, bench
+scale, bench rig, text CLI metric and imperial). Set the COM port and bench
+target once in `settings.bat`.
 
-## Laptop setup
+## Using the dashboard
 
-Python 3.10+ recommended.
+1. **Select a flange.** Filter by type and pressure class, or search.
+2. **Set up.** Pick the allowable bolt stress and friction factor. The screen
+   shows the stud, minimum preload (target) and torque, and maximum preload
+   and torque. Tap a bolt to attach, move or clear a tool (Auto fills free
+   bolts with online tools in order). A flange's `bolt_count` is the most tools
+   it can take.
+3. **Start Tightening.** The run then:
+   - uses only bolts with an online tool;
+   - tares every tool (fit the tools with the bolts unloaded);
+   - sends the full target to every tool at once, with no passes;
+   - marks a bolt reached after 2 status lines in a row at TARGET_REACHED and
+     at or above target;
+   - re-sends the target to a reached bolt that reads below target for 3
+     status lines in a row (tightening one bolt loosens its neighbours), up to
+     5 times before flagging it "insufficient";
+   - stops that tool and flags its bolt "over-tightened" after 2 status lines
+     above the maximum;
+   - flags a bolt "insufficient" if it misses the timeout;
+   - finishes once every bolt is at target together for 3 s.
+4. **Completed.** Shows each bolt's result. Save Report downloads the Excel
+   file. Next Tool Group keeps the finished bolts and attaches the tools to
+   the rest, so a flange with more bolts than tools is done in groups.
 
-Install:
+Every STOP the dashboard sends is repeated (up to 5 times, 1 s apart) until
+the tool reports IDLE or STOPPED, otherwise the log shows
+`ERROR,STOP_NOT_CONFIRMED,<tool>`. Cancel sends STOP_ALL, then a confirmed
+STOP to each bolt still tightening.
 
-    pip install -r requirements.txt
+The gear icon opens the tool panel: live readings per tool, Tare All, Stop
+All, Loosen All and a Loosen button per tool. Loosening is refused while a
+run is in progress.
 
-Run:
+**Units.** The Metric / Imperial button switches forces (N, kN / lbf),
+torques (N·m / lbf·ft), pressure class, socket and stud size, and which stress
+table is offered (H.1 or H.2). Live torque scales the table torque with the
+measured tension (T ∝ F) and is marked ≈ except at the table value.
 
-Windows:
+**Bench scale.** `--bench-target N` sends every API 6A table target to the tools
+scaled down to N newtons, with the maximum scaled the same way. The UI and
+report scale readings back up to full size; a yellow note shows the
+load-cell target, and the tool panel and report keep the load-cell values.
 
-    python laptop_controller.py --port COM5
+## Targets
 
-Linux:
+`flange_profiles.json` holds geometry only: `id`, `display_name`,
+`bolt_count` and `bolt` (stud size, e.g. `1-1/8-8`) are required; `type`,
+`icon`, pressure classes, socket sizes and `tools` (tool per bolt) are
+optional. `bolt_profiles.json` holds API 6A Tables H.1 (275 / 360 / 327.5 MPa)
+and H.2 (40 / 52.5 / 47.5 ksi) per stud, with friction factors 0.07 and 0.13.
 
-    python laptop_controller.py --port /dev/ttyACM0
+`bolt_calc.py` reads the target tension and make-up torque from the table for
+the chosen stress and friction factor. The maximum is `max_over_target_pct`
+(25 %) above the target. `flange_overrides` caps four H.3.3 flanges at
+275 MPa / 40 ksi. The bench rigs use the `BENCH` stud with a fixed 50 N
+target and 62.5 N maximum. Table values were typed in by hand: check them
+against the standard before real use.
 
-macOS:
+## Tool firmware behaviour
 
-    python laptop_controller.py --port /dev/cu.usbmodemXXXX
+States: `IDLE`, `TARE_FAILED`, `READY`, `MONITORING`, `TARGET_REACHED`,
+`STOPPED`, `LOOSENING`.
 
-If `--port` is omitted, the program attempts to select or prompt for an
-available serial port.
+- **Boot:** relays forced off first, then `IDLE`. No auto-tare.
+- **TARE:** tares until the filtered mean is within 1500 counts of zero and
+  the scaled MAD is under 500 counts, over a 10-reading window, or gives up
+  after 20 s (`READY` or `TARE_FAILED`). Discovery pings continue so the tool
+  stays online.
+- **TARGET:** refused (NACK) unless the tool holds a good tare. Relays switch
+  on (continuously; pulsing is coded but disabled) and the tool goes to
+  `MONITORING`. A bolt already at target stays off and goes straight to
+  `TARGET_REACHED`.
+- **Target detection:** each reading goes into a 10-reading window; the MAD
+  filter (modified z ≤ 3.5, MAD floor 2 counts) removes spikes and the
+  maximum of the remaining readings is compared with the target
+  (`TARGET_DETECTION = DETECT_MAXIMUM`, the least lag). Checking starts after
+  3 readings. The reading used is the absolute value, since compression can
+  read negative.
+- **After TARGET_REACHED** the tool keeps measuring, so the dashboard can see
+  a bolt relax.
+- **STOP:** relays off, target cleared, `IDLE`, tare kept (a TARGET works
+  straight away). **RESET:** the same but the tare is cleared.
+- **LOOSEN:** runs the drive relays for 5 s (`LOOSEN_TIMEOUT_MS`), then
+  replies DONE and returns to `READY` (or its previous state if untared).
+  STOP, RESET or TARE end it early. There is no direction relay yet
+  (`REVERSE_RELAY_PIN = -1`), so set the wrench to reverse by hand, and
+  nothing checks that the force is falling.
+- **Safety stops (`STOPPED`):** 3 filtered readings in a row above
+  1.25 × target (`MAX_OVER_TARGET`), or a run longer than 180 s
+  (`MAX_RUN_MS`).
+- **Status** is broadcast every 250 ms, discovery every 1 s.
 
-## Laptop commands
+**Serial debug.** With the tool on USB, the Serial Monitor accepts `TARE`,
+`STOP`, `RESET`, `TARGET,<N>`, `LOOSEN`, `STATUS`, `RAW` (5 s of raw HX711
+readings and the sample rate) and `HELP`. Commands go through the same code as
+radio commands.
 
-    list
-    target TOOL_01 100
-    stop TOOL_01
-    tare TOOL_01
-    reset TOOL_01
-    loosen TOOL_01
-    target-all 100
-    stop-all
-    tare-all
-    reset-all
-    loosen-all
-    status
-    quit
+## Controller firmware behaviour
 
-Example:
+Tracks up to 20 tools, found from their discovery broadcasts. A tool is
+reported offline after 5 s without a packet, plus 60 s while it is taring. A
+command with no reply within 3 s gives `ERROR,NO_RESPONSE`.
 
-    target TOOL_03 125
+## Serial protocol
 
-sends a 125 N target to TOOL_03. TOOL_03 then performs the sampling/filtering
-and relay control itself.
+Laptop to controller (any case):
 
-## USB Serial protocol
-
-The controller emits machine-readable lines such as:
-
-    STATUS,TOOL_01,MONITORING,100.0000,421,398,1
-    STATUS,TOOL_02,READY,0.0000,35,0,0
-
-STATUS fields: tool ID, state, target (N), raw counts, stop value (the
-MAD-filtered value the tool compares with the target: the window maximum by
-default, see `TARGET_DETECTION` in the tool firmware), relay on. Keep the
-target field: the dashboard uses it to tell a status from its latest TARGET
-apart from an older one, and the parser reads fields by position. (Older
-controller firmware also printed a 1 s average before relay on; the laptop
-still accepts that.)
-
-STOP: relays off, target cleared, back to IDLE. The tare baseline and the
-readings are kept, so a tight bolt keeps showing its load and a TARGET
-straight after a STOP re-tightens it against the same zero, with no new tare.
-RESET: the same, but it also clears the tare, so the tool needs a TARE first.
-Only the on-tool safety stops leave a tool in STOPPED; a TARGET from STOPPED
-works too. TARGET is refused by a tool that was never tared, was RESET, or
-whose last tare failed.
-
-    EVENT,DISCOVERED,TOOL_03,AA:BB:CC:DD:EE:FF
-
-Every command gets a `SENT` line from the controller and then a reply from
-the tool itself (`<state>` is the tool's state after the command):
-
-    SENT,TOOL_01,TARGET,100.0000          queued for the radio
-    ACK,TOOL_01,TARGET,MONITORING,100.0000 tool accepted it
-    NACK,TOOL_01,TARGET,IDLE,100.0000     tool refused it (TARGET before TARE)
-    ACK,TOOL_01,TARE,IDLE,0.0000          tare started
-    DONE,TOOL_01,TARE,READY,0.0000        tare finished (or TARE_FAILED)
-    ERROR,NO_RESPONSE,TOOL_01,STOP        no ACK/NACK within 1 s
-
-This deliberately simple protocol makes it straightforward for a future GUI
-to consume.
-
-The laptop sends:
-
-    TARGET,TOOL_01,100
-    STOP,TOOL_01
-    TARE,TOOL_01
-    RESET,TOOL_01
-    LOOSEN,TOOL_01
-    TARGET_ALL,100
-    STOP_ALL
-    TARE_ALL
-    RESET_ALL
-    LOOSEN_ALL
     LIST
+    TARGET,<tool>,<N>      TARGET_ALL,<N>
+    TARE,<tool>            TARE_ALL
+    STOP,<tool>            STOP_ALL
+    RESET,<tool>           RESET_ALL
+    LOOSEN,<tool>          LOOSEN_ALL
 
-## Dashboard (tablet-style UI)
+Controller to laptop:
 
-`laptop_controller/dashboard.py` serves a browser UI styled after the rugged
-tablet mock-ups: flange selection, live bolt diagram and per-bolt bars during
-tightening, and a completed screen with a saved report.
+    STATUS,<tool>,<state>,<target_N>,<raw_counts>,<stop_value_counts>,<relay_on>
+    SENT,<tool>,<cmd>[,<N>]                       command handed to the radio
+    COMMAND ACCEPTED,<tool>,<cmd>,<state>,<N>     tool accepted it
+    COMMAND REJECTED,<tool>,<cmd>,<state>,<N>     tool refused it (e.g. TARGET before TARE)
+    DONE,<tool>,<cmd>,<state>,<N>                 TARE or LOOSEN finished
+    TOOL,<tool>,ONLINE|OFFLINE,<mac>              reply to LIST
+    EVENT,DISCOVERED|ONLINE|OFFLINE,<tool>[,<mac>]
+    ERROR,NO_RESPONSE,<tool>,<cmd>
 
-    pip install -r requirements.txt
-    python dashboard.py --port COM5      # real controller
-    python dashboard.py --sim 12         # no hardware, 12 simulated tools
+`stop_value` is the filtered value the tool compares with the target. The
+target field lets the dashboard ignore status from an older TARGET. Other
+errors: `UNKNOWN_TOOL`, `SEND_FAILED`, `NO_TOOLS`, `BAD_TARGET_VALUE`,
+`BAD_COMMAND`, `BAD_TARGET_COMMAND`, `UNKNOWN_COMMAND`, `TOOL_TABLE_FULL`,
+`RX_QUEUE_FULL`.
 
-**Click-to-run scripts.** `laptop_controller/run_scenarios/` has a Windows
-`.bat` file per scenario (first-time setup, three simulations, real tools at
-bench scale or on the bench rig flange, and the text controller). Double-click
-one to run it. The COM port and bench target are set once in `settings.bat`;
-the folder's `README.txt` lists what each script does.
+The `WirelessPacket` struct must stay identical in both `.ino` files.
 
-It opens http://localhost:8000. A run:
+## Text CLI
 
-1. Uses only bolts whose tool is online (bolt 1 = TOOL_01, and so on, unless
-   the profile lists `tools`).
-2. Tares every tool, so start with the tools fitted but the bolts unloaded.
-3. Sends the full target to every tool at once, in a single run with no
-   passes, and waits for TARGET_REACHED. A bolt that misses the timeout (120 s
-   by default, `--timeout`) is stopped and flagged as insufficient preload.
-4. Keeps watching bolts that are at target, because tightening a bolt can
-   loosen its neighbours. A bolt that reads below target (by any amount) for
-   three status lines in a row loses its tick and is sent its target again.
-   After 5 re-tightens it is flagged as insufficient ("kept loosening"). The
-   run finishes only once every bolt is at target together for 3 s. This needs
-   the current tool firmware, which keeps measuring after TARGET_REACHED.
-5. Stops only that tool and flags its bolt as over-tightened if it reads above
-   the profile's `max_n` (the maximum preload). The other bolts carry on.
-   Every STOP the dashboard sends is repeated (up to 5 times, 1 s apart) until
-   the tool reports IDLE; if it never does, the log shows
-   `ERROR,STOP_NOT_CONFIRMED,<tool>`.
-6. Saves an Excel report (`.xlsx`) in `laptop_controller/reports/`: the run
-   summary with each bolt's final load and re-tighten count at the top, then
-   the load log below it (every status line from every tool during the run,
-   about 4 per second per tool: time, bolt, state, stop value N (what the
-   tool compares with the target), raw N, relay), and a chart of the stop
-   value against time with one line per bolt
-   plus the target (minimum) and maximum. Written by `xlsx_report.py` with
-   the Python standard library only, so nothing extra to install.
+`laptop_controller.py` takes `list`, `target <tool> <force>`, `stop`, `tare`,
+`reset`, `loosen <tool>`, the `-all` versions, `status`, `help` and `quit`.
+`--units imperial` shows and takes forces in lbf.
 
-The gear icon opens a tool panel with live readings, Tare / Stop / Loosen
-all, and a Loosen button per tool (see Loosening below). Loosen is refused
-while a tightening run is in progress.
-
-**Tools per bolt.** A flange's `bolt_count` is the most tools it can take.
-Before starting, tap any bolt to attach a tool, move one, or leave the bolt
-empty (Auto fills free bolts with online tools in order). Tools can be
-staggered: after a run, "Next Tool Group" keeps the finished bolts and
-auto-attaches the tools to the remaining ones. The report lists the group
-that did each bolt.
-
-**Flanges and bolts.** `flange_profiles.json` holds every API 6A flange
-from Tables D.1-D.7 / E.1-E.7 (6B and 6BX, including large bore) plus two
-bench rigs: pressure class and socket size in metric and imperial, bolt
-count, and the stud size (`bolt`, e.g. `1-1/8-8`). It holds no targets.
-`bolt_profiles.json` holds Tables H.1 (SI) and H.2 (USC) per stud size. After
-picking a flange the operator picks the allowable bolt stress (275 / 360 /
-327.5 MPa, or 40 / 52.5 / 47.5 ksi, as the table has them for that stud) and
-the friction factor f (0.07 or 0.13). The dashboard reads the target tension
-and make-up torque from the table as the minimum, and sends the tension to the
-tools in N. The maximum preload and torque are `max_over_target_pct` above the
-minimum (25 %, so max = min + 0.25 × min); the setup screen shows all four.
-`flange_overrides` caps the stress at 275 MPa / 40 ksi for the H.3.3 flanges.
-The lookup is in `bolt_calc.py`, where equation-based targets can be added.
-A bench rig uses a bolt with a fixed `custom` target (50 N) for the
-proof-of-concept load cell (62.5 N max). The table values were typed in from the API 6A
-pages; check any value against the standard before real use.
-
-**Bench scale (real tool, small load).** `python dashboard.py --port COM5
---bench-target 30` runs any flange setup on the proof-of-concept load cell:
-the tools are sent 30 N (any value; 10 to 50 N suits the current cell) instead
-of the full table tension, and the over-limit stop scales the same way. The
-UI and reports scale each reading back up, so pressing the cell to 15 N shows
-half the flange's target tension and the torque that implies. A yellow note
-on the setup screen shows the load-cell target; the tool panel and the
-report's `load_cell_N` column keep the raw load-cell values.
-
-**Units.** The Metric / Imperial button in the header switches every force
-(N or kN / lbf), torque (N·m / lbf·ft), pressure class, socket and stud size,
-and which stress table is offered (H.1 or H.2). The live torque during a run
-scales the table torque with the measured tension (T ∝ F) and is marked ≈
-except at the exact table value. Reports list targets and results in both kN
-and lbf. The text CLI takes `--units metric|imperial` (targets typed in N or
-lbf) and `--n-per-count` to show measured forces instead of raw counts.
-
-**Flange icons.** Each flange's diagram comes from its `icon` (`6BX`, `6B`,
-`bench` or `generic`; default follows `type`). Bolt positions are drawn from
-`bolt_count`. New icon styles go in `FLANGE_ICONS` in `static/index.html`.
-
-**Ideal simulation.** `python simulate_ideal.py` starts the dashboard with 32
-simulated tools (`--tools N` to change) that all stream live readings and
-always reach target, each at its own pace.
-
-**Other simulations.** `--sim N` takes `--sim-stall P` (chance a tool stalls
-below target, default 0.03), `--sim-overshoot P` (chance it overshoots the
-max when it reaches target) and `--sim-loosen F` (how much tightening one bolt
-loosens those already at target; 0.3 makes re-tightening easy to see).
-
-`--n-per-count` must match `N_PER_COUNT` in the tool firmware (default 0.205).
-The controller firmware tracks at most 20 tools (the ESP-NOW peer limit), so
-flanges with more than 20 bolts need staggered tool groups on hardware.
-
-## Future UI integration
-
-Import instead of replacing the communications layer:
+To reuse the serial layer elsewhere:
 
     from laptop_controller import ToolNetworkController
+    c = ToolNetworkController("COM5")
+    c.on_status = handler      # called with a ToolStatus per STATUS line
+    c.connect()
+    c.set_target("TOOL_01", 100.0)
 
-Then create a controller and attach callbacks:
+## Reports
 
-    controller = ToolNetworkController("COM5")
-    controller.on_status = my_status_handler
-    controller.connect()
-    controller.set_target("TOOL_01", 100.0)
+Each run (completed or cancelled) saves
+`reports/<YYYYMMDD_HHMMSS>_<flange id>.xlsx`:
 
-A GUI should use the callback/status model rather than directly parsing serial
-data throughout its widgets.
+- **Run** sheet: summary (flange, result, stud, setting, target and maximum
+  in kN and lbf, table tension and torque), one row per bolt (group, status,
+  final load in kN, lbf and load-cell N, re-tightens, note), then every
+  status line logged during the run, grouped by bolt.
+- **Chart 1:** stop value (load-cell N) against time, one line per bolt, with
+  the target and maximum.
+- **Chart 2 / Scaled load** sheet: full-size kN resampled to a constant step
+  (0.1 s, widened for long runs), each bolt holding its last reported value.
 
-## On-tool safety
+## Limitations
 
-The tool firmware does not rely on the laptop to stop:
-
-- Relays are forced off (pins latched HIGH before becoming outputs) as the
-  first thing at boot. The pins float for the moment between power-on and
-  that line; a pull-up resistor on each relay input covers that gap in hardware.
-- The tool stops itself (relays off, TARGET_REACHED) as soon as the filtered
-  value reaches the target, which is the minimum preload. Checking starts
-  after 3 readings (`MIN_DETECT_READINGS`) rather than a full 10-reading
-  window, so it no longer runs blind for ~1 s at the start of each run or
-  re-tighten. A TARGET for a bolt already at or above it never switches the
-  relays on.
-- During a run, three MAD-filtered values in a row above 1.25 × target
-  (`MAX_OVER_TARGET`, which must match `max_over_target_pct`) switch the
-  relays off and put the tool in STOPPED, reporting the over-force reading.
-- A run that lasts longer than `MAX_RUN_MS` (180 s) stops itself.
-- A LOOSEN run stops itself after 15 s.
-
-## Loosening
-
-`LOOSEN,<tool>` (or `LOOSEN_ALL`) runs a tool in reverse. The tool stops by
-itself after 15 s (`LOOSEN_TIMEOUT_MS`) and replies `DONE,<tool>,LOOSEN,...`;
-STOP, RESET or TARE end it earlier. It works in any state, tared or not: a
-tared tool goes back to READY afterwards, an untared one back to IDLE. While
-loosening, STATUS shows the state `LOOSENING`.
-
-Wiring: there is no direction relay yet (`REVERSE_RELAY_PIN = -1`), so set
-the wrench to reverse BY HAND before pressing Loosen; LOOSEN only switches the
-two drive relays. There is no check that the force is falling, so a wrench
-left in forward will tighten until the 15 s timeout or Stop. If a direction
-relay is fitted later, set `REVERSE_RELAY_PIN` to its GPIO: it is then
-switched (active-LOW, ON = reverse) before the drive relays, only with the
-drive relays off (500 ms spin-down).
-
-## Important current limitations
-
-- ESP-NOW packets are currently unencrypted.
-- This is an early protocol and does not yet include command sequence numbers,
-  so two quick commands of the same kind to one tool can't be told apart.
-- `SENT` only means the ESP-NOW send was queued; the tool's own `ACK` / `NACK`
-  line is the confirmation. A lost reply shows as `ERROR,NO_RESPONSE`, even if
-  the tool did act on the command.
-- Tool firmware should be bench-tested with relays/load hardware in a safe
-  setup before controlling the real mechanism.
+- ESP-NOW packets are unencrypted and have no sequence numbers.
+- `SENT` only means the send was queued; a lost reply shows as
+  `ERROR,NO_RESPONSE` even if the tool acted on the command.
+- The load cell's accuracy has not been tested against a reference load.
+- Bench-test the tool firmware with the relays and load hardware in a safe
+  setup before using it on a real flange.

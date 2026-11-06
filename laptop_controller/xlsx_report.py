@@ -1,9 +1,6 @@
 """
-xlsx_report.py: run report as .xlsx with load-vs-time charts, standard library only.
-
-Sheets: Run (summary + log + charts), Chart lines, Scaled load (full-size values
-resampled to a constant step). Written strictly enough for Excel: schema order,
-shared strings, numCache on every series, bad XML chars and NaN/inf removed.
+Run report as .xlsx with load charts, standard library only (no openpyxl).
+Excel is strict: schema order, shared strings, numCache, no bad chars or NaN.
 """
 
 from __future__ import annotations

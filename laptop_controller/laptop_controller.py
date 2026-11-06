@@ -1,7 +1,6 @@
 """
-laptop_controller.py: serial API and text CLI for the controller ESP32-C3.
+Serial API for the controller ESP32 plus a text CLI.
 
-Run:
     python laptop_controller.py [--port COM4]
 """
 
@@ -77,7 +76,6 @@ class ToolNetworkController:
             self.serial.write((command.strip() + "\n").encode("utf-8"))
             self.serial.flush()
 
-    # ---- Commands ----
 
     def list_tools(self) -> None:
         self._send("LIST")
@@ -117,7 +115,6 @@ class ToolNetworkController:
     def loosen_all(self) -> None:
         self._send("LOOSEN_ALL")
 
-    # ---- Parsing ----
 
     def _reader_loop(self) -> None:
         while self._running and self.serial and self.serial.is_open:
@@ -238,7 +235,6 @@ def choose_port(requested: Optional[str]) -> str:
         print("Invalid selection.")
 
 
-# CLI display settings
 N_PER_LBF = 4.4482216
 DISPLAY = {"imperial": False, "n_per_count": 0.19975}
 

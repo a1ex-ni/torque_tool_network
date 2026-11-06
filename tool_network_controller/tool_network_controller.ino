@@ -1,6 +1,5 @@
-// tool_network_controller.ino
-// ESP-NOW gateway between the laptop (USB Serial) and the target_monitor_wifi tools.
-// The receive callback only queues packets; loop() does all Serial output and tool table updates.
+// ESP-NOW <-> USB Serial gateway for the tool units.
+// The receive callback only queues; loop() owns Serial and the tool table.
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -9,7 +8,7 @@
 
 const int MAX_TOOLS = 20;
 const unsigned long TOOL_OFFLINE_MS = 5000;
-// Extra offline allowance while a tool tares (it sends no status then)
+// Extra offline allowance while a tool tares (silent)
 const unsigned long TOOL_TARE_TIMEOUT_MS = 60000;
 const int RX_QUEUE_SIZE = 32;
 const unsigned long RESPONSE_TIMEOUT_MS = 3000;  // then ERROR,NO_RESPONSE
@@ -39,7 +38,7 @@ struct __attribute__((packed)) WirelessPacket {
   float value;
   int32_t rawCounts;
   int32_t filteredCounts;      // stop value compared with the target
-  int32_t filteredAvgCounts;   // unused here
+  int32_t filteredAvgCounts;
   uint8_t state;
   uint8_t relayOn;
 };
@@ -51,14 +50,13 @@ struct ToolPeer {
   uint8_t mac[6];
   unsigned long lastSeen;
   WirelessPacket lastStatus;
-  uint8_t pendingCommand;       // 0 once answered
+  uint8_t pendingCommand;
   unsigned long pendingSince;
   bool taring;
 };
 
 ToolPeer tools[MAX_TOOLS];
 
-// ESP-NOW receive queue
 struct RxPacket {
   uint8_t mac[6];
   WirelessPacket packet;
@@ -120,7 +118,6 @@ int findTool(const char *toolId) {
   return -1;
 }
 
-// Add or update a tool's ESP-NOW peer
 int registerTool(const char *toolId, const uint8_t *mac) {
   int index = findTool(toolId);
 
@@ -194,7 +191,7 @@ void printResponse(const WirelessPacket &packet) {
   Serial.println(packet.value, 4);
 }
 
-// Runs in the WiFi task: queue only
+// WiFi task: queue only
 void onDataReceived(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
   if (len != sizeof(WirelessPacket)) return;
 
@@ -263,7 +260,6 @@ void handlePacket(const RxPacket &rx) {
   }
 }
 
-// Report unanswered commands once
 void checkResponses() {
   unsigned long now = millis();
   for (int i = 0; i < MAX_TOOLS; i++) {
@@ -278,7 +274,6 @@ void checkResponses() {
   }
 }
 
-// Report tools that went quiet
 void checkOffline() {
   unsigned long now = millis();
   for (int i = 0; i < MAX_TOOLS; i++) {
@@ -345,7 +340,6 @@ void sendCommandToAll(uint8_t command, float value = 0) {
     Serial.println("ERROR,NO_TOOLS");
 }
 
-// Rejects blank, junk and non-positive targets
 bool parseTarget(const String &text, float &targetN) {
   targetN = text.toFloat();
   if (targetN <= 0) {
@@ -477,7 +471,6 @@ void setup() {
   Serial.println("EVENT,REPLIES,SENT,<tool>,<cmd>[,<N>] | ACCEPTED/REJECTED/DONE,<tool>,<cmd>,<state>,<N> | ERROR,NO_RESPONSE,<tool>,<cmd>");
 }
 
-// Non-blocking line read
 bool readSerialLine(String &out) {
   static String buf;
   while (Serial.available()) {

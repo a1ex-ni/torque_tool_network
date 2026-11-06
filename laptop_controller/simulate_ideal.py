@@ -1,9 +1,4 @@
-"""
-simulate_ideal.py: simulated run where every bolt reaches target (no hardware).
-
-Run:
-    python simulate_ideal.py [--tools 12]   # default 32, enough for every flange
-"""
+"""Simulated run where every bolt reaches target. Default 32 tools (largest flange)."""
 
 import argparse
 

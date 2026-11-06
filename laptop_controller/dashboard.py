@@ -1,13 +1,7 @@
 """
-dashboard.py: web dashboard and tightening sequence for the torque tool network.
+Web dashboard and tightening sequence. Browser <-WebSocket-> here <-serial-> controller.
 
-    Browser <-WebSocket/REST-> this server <-USB serial-> controller ESP32 <-ESP-NOW-> tools
-
-Run:
-    python dashboard.py --port COM5          # real controller
-    python dashboard.py --sim 12             # no hardware, 12 simulated tools
-
-Then open http://localhost:8000 (opened automatically unless --no-browser).
+    python dashboard.py --port COM5    # or --sim 12 for no hardware
 """
 
 from __future__ import annotations
@@ -51,7 +45,6 @@ STOP_ATTEMPTS = 5
 STOP_RETRY_S = 1.0
 
 
-# ---------------------------------------------------------------- state ----
 
 @dataclass
 class ToolView:
@@ -263,7 +256,6 @@ class Dashboard:
         self.log = (self.log + [line])[-50:]
         self._broadcast({"type": "log", "data": line})
 
-    # ---- broadcasting ----
 
     def _broadcast(self, msg: dict) -> None:
         for ws in list(self.sockets):
@@ -314,7 +306,7 @@ class Dashboard:
     async def _sequence(self, run: SequenceRun) -> None:
         profile = run.profile
         try:
-            # 1. Skip bolts without an online tool
+            # 1. Only bolts with an online tool
             for b in run.bolts:
                 tool = self.tools.get(b.tool_id)
                 if b.carried:
@@ -580,7 +572,6 @@ def save_report(run: SequenceRun) -> str:
     return path.name
 
 
-# ------------------------------------------------------------------ app ----
 
 PROFILE_DEFAULTS = {"type": "Custom", "pressure_class_metric": "N/A", "pressure_class_imperial": "N/A",
                     "socket_size_metric": "N/A", "socket_size_imperial": "N/A"}
@@ -611,7 +602,6 @@ def create_app(dash: Dashboard, mode_label: str) -> FastAPI:
     app = FastAPI(lifespan=lifespan)
 
     async def _poll_list() -> None:
-        # Refresh online flags
         while True:
             await asyncio.sleep(1.0)
             for view in dash.tools.values():
@@ -751,7 +741,7 @@ def main() -> int:
     else:
         try:
             port = choose_port(args.port)
-            open_port(port, args.baud).close()   # fail early
+            open_port(port, args.baud).close()   # fail before startup
         except RuntimeError as exc:
             print(f"Error: {exc}")
             return 1

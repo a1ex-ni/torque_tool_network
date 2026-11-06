@@ -1,9 +1,6 @@
 """
-simulated_controller.py: fake controller and tools for running the dashboard without hardware.
-
-Emits the real serial protocol through ToolNetworkController._handle_line and
-mirrors the tool firmware's states. Options: stall_chance, loosen (neighbour
-loosening), overshoot_chance, rate_spread.
+Fake controller and tools. Feeds real protocol lines through _handle_line and
+mirrors the firmware's states.
 """
 
 from __future__ import annotations
@@ -69,7 +66,6 @@ class SimulatedController(ToolNetworkController):
             gain = RAMP_GAIN * random.uniform(1 - rate_spread, 1 + rate_spread)
             self._sims[tool_id] = _SimTool(tool_id, mac, gain=gain)
 
-    # ---- Transport overrides ----
 
     def connect(self) -> None:
         self._running = True
@@ -106,7 +102,6 @@ class SimulatedController(ToolNetworkController):
             value = float(parts[2]) if len(parts) > 2 else None
             self._apply(kind, parts[1], value)
 
-    # ---- Simulated tool behaviour ----
 
     def _apply(self, kind: str, tool_id: str, value) -> None:
         sim = self._sims[tool_id]

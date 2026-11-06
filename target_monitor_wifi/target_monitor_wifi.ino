@@ -1,13 +1,5 @@
-// target_monitor_wifi.ino
-// ESP32-C3 tool unit: tare, MAD filtering, target monitoring and relay control,
-// commanded over ESP-NOW by tool_network_controller.
-//
-// Boots IDLE with no auto-tare. TARGET needs a good tare; STOP keeps it, RESET clears it.
-// Replies: MSG_ACK (accepted), MSG_NACK (refused), MSG_DONE (TARE or LOOSEN finished).
-// Stops as soon as the filtered value reaches the target (the minimum preload).
-// On-tool safety: over-force (MAX_OVER_TARGET x target) and run timeout -> STOPPED.
-// LOOSEN: reverse run for LOOSEN_TIMEOUT_MS. No direction relay yet, so set the
-// wrench to reverse by hand.
+// Tool unit: tare, MAD filtering, target cutoff and relays run locally;
+// commands and status go over ESP-NOW. Boots IDLE (no auto-tare).
 
 #include <Arduino.h>
 #include "HX711.h"
@@ -19,66 +11,57 @@
 #include <climits>
 #include <algorithm>
 
-// Change on each tool: TOOL_01, TOOL_02, ...
+// Unique per tool
 const char TOOL_ID[] = "TOOL_01";
 
-// HX711 pins
 const int LOADCELL_DOUT_PIN = 2;
 const int LOADCELL_SCK_PIN = 3;
 
-// Relay pins (active-LOW)
+// Active-LOW relays
 const int RELAY_1_PIN = 1;
 const int RELAY_2_PIN = 0;
-// Direction relay: ON = reverse. -1 = not fitted (set direction by hand)
+// -1 = no direction relay: set reverse on the wrench by hand
 const int REVERSE_RELAY_PIN = -1;
 
 HX711 scale;
 
-// N per count, from datasheets: 300 kN / (2^23 * 0.69936 / 3.90625 mV/V) = 0.19975
-// Must match DEFAULT_N_PER_COUNT in dashboard.py
+// From datasheets: 300 kN / (2^23 * 0.69936 / 3.90625). Matches dashboard.py
 const double N_PER_COUNT = 0.19975;
 
-// Filter buffers
 const int MAX_WINDOW_SIZE = 1000;
-const int WINDOW_SIZE = 10;  // ~1 s at 10 SPS
+const int WINDOW_SIZE = 10;  // ~1 s
 
-// Value of the filtered window compared with the target.
-// MAXIMUM has the least lag (least overshoot); AVERAGE and MINIMUM lag more.
+// MAXIMUM lags least, so overshoots least
 enum TargetDetection { DETECT_AVERAGE, DETECT_MINIMUM, DETECT_MAXIMUM };
 const TargetDetection TARGET_DETECTION = DETECT_MAXIMUM;
-// Readings before detection starts (MAD needs 3 to reject a spike)
+// MAD needs 3 readings to reject a spike
 const int MIN_DETECT_READINGS = 3;
 long window[MAX_WINDOW_SIZE];
 long scratch[MAX_WINDOW_SIZE];
-// MAD floor so spikes are still rejected when MAD is 0
-const double MIN_SCALED_MAD = 2.0;   // counts (~0.4 N)
+const double MIN_SCALED_MAD = 2.0;   // floor: MAD of 0 would pass spikes
 int windowWriteIndex = 0;
 long totalReadingsTaken = 0;
 
-// Tare check
 const int TARE_WINDOW_SIZE = 10;
-const long MAX_TARE_ERROR = 1500;    // |filtered mean| after tare, counts (~300 N)
-const double MAX_TARE_MAD = 500;     // scaled MAD after tare, counts (~100 N)
+const long MAX_TARE_ERROR = 1500;    // counts
+const double MAX_TARE_MAD = 500;     // counts
 const unsigned long TARE_TIMEOUT = 20000;
 
-// On-tool safety limits. MAX_OVER_TARGET matches max_over_target_pct (25 %)
+// Matches max_over_target_pct in bolt_profiles.json
 const float MAX_OVER_TARGET = 1.25;
-const int MAX_FORCE_READINGS = 3;           // consecutive readings over max
+const int MAX_FORCE_READINGS = 3;
 const unsigned long MAX_RUN_MS = 180000;
 
-// Loosening
-const unsigned long LOOSEN_TIMEOUT_MS = 5000;    // short, to avoid the wrench's overload cut-out
-const unsigned long DIRECTION_SETTLE_MS = 500;   // spin-down before reversing
+const unsigned long LOOSEN_TIMEOUT_MS = 5000;    // short to avoid the wrench's overload cut-out
+const unsigned long DIRECTION_SETTLE_MS = 500;
 
-// Relay pulse timing (pulsing currently disabled)
+// Pulsing disabled, see loop()
 const unsigned long PULSE_ON_MS = 250;
 const unsigned long PULSE_OFF_MS = 3000;
 
-// Radio timing
 const unsigned long STATUS_INTERVAL_MS = 250;
 const unsigned long DISCOVERY_INTERVAL_MS = 1000;
 
-// Live display average, refreshed ~1 s whenever tared
 const unsigned long DISPLAY_AVG_INTERVAL_MS = 1000;
 const int MIN_DISPLAY_SAMPLES = 5;
 long displayWindow[MAX_WINDOW_SIZE];
@@ -97,7 +80,7 @@ enum ToolState {
 };
 
 ToolState toolState = IDLE;
-bool tareValid = false;          // kept by STOP, cleared by RESET
+bool tareValid = false;          // STOP keeps it, RESET clears it
 float targetN = 0;
 long targetCounts = 0;
 long maxCounts = 0;
@@ -114,7 +97,6 @@ unsigned long phaseStartTime = 0;
 unsigned long lastStatusTime = 0;
 unsigned long lastDiscoveryTime = 0;
 
-// ESP-NOW packets
 enum MessageType : uint8_t {
   MSG_DISCOVERY = 1,
   MSG_STATUS = 2,
@@ -140,21 +122,20 @@ struct __attribute__((packed)) WirelessPacket {
   float value;
   int32_t rawCounts;
   int32_t filteredCounts;      // stop value compared with the target
-  int32_t filteredAvgCounts;   // repeats filteredCounts
+  int32_t filteredAvgCounts;   // repeats filteredCounts (layout kept)
   uint8_t state;
   uint8_t relayOn;
 };
 
 const uint8_t BROADCAST_MAC[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-// Command queue: the WiFi callback only queues, loop() handles
+// WiFi callback only queues; loop() runs commands (tare blocks)
 const int COMMAND_QUEUE_SIZE = 8;
 WirelessPacket commandQueue[COMMAND_QUEUE_SIZE];
 volatile int commandQueueHead = 0;
 volatile int commandQueueTail = 0;
 portMUX_TYPE commandQueueMux = portMUX_INITIALIZER_UNLOCKED;
 
-// Median (overwrites sortedBuffer)
 double calculateMedianWindow(long *data, long *sortedBuffer, int n) {
   memcpy(sortedBuffer, data, n * sizeof(long));
   if (n % 2 == 0) {
@@ -168,7 +149,6 @@ double calculateMedianWindow(long *data, long *sortedBuffer, int n) {
   return sortedBuffer[n / 2];
 }
 
-// Median absolute deviation
 double calculateMADWindow(long *data, long *scratchBuf, int n, double median) {
   for (int i = 0; i < n; i++)
     scratchBuf[i] = labs((long)round(data[i] - median));
@@ -184,7 +164,7 @@ double calculateMADWindow(long *data, long *scratchBuf, int n, double median) {
   return mad;
 }
 
-// Mean / max / min of readings that pass the MAD filter
+// Mean / max / min of readings passing the MAD filter
 double filteredAvgOfWindow(long *data, int n, double threshold = 3.5) {
   double median = calculateMedianWindow(data, scratch, n);
   double mad = calculateMADWindow(data, scratch, n, median);
@@ -257,7 +237,6 @@ void setReverse(bool reverse) {
   reverseOn = reverse;
 }
 
-// Drive relays off, then direction back to forward
 void relaysOFF() {
   digitalWrite(RELAY_2_PIN, HIGH);
   delay(200);
@@ -269,7 +248,6 @@ void relaysOFF() {
   }
 }
 
-// Drive relays on, forward
 void relaysON() {
   if (reverseOn) relaysOFF();
   digitalWrite(RELAY_2_PIN, LOW);
@@ -278,7 +256,6 @@ void relaysON() {
   relaysOn = true;
 }
 
-// Drive relays on, reverse
 void relaysReverseON() {
   if (relaysOn && !reverseOn) {
     relaysOFF();
@@ -294,7 +271,7 @@ void relaysReverseON() {
 
 void sendPacket(uint8_t messageType);
 
-// Discovery pings while loop() is blocked (e.g. tare), so the tool stays online
+// Keep the tool online while loop() is blocked
 const unsigned long KEEPALIVE_INTERVAL_MS = 250;
 void keepAlive() {
   unsigned long now = millis();
@@ -314,7 +291,7 @@ bool tareUntilStable(int windowSize, long maxError, double maxScaledMAD, unsigne
 
   while (millis() - start < timeoutMs) {
     keepAlive();
-    scale.tare();   // ~1 s
+    scale.tare();
     keepAlive();
 
     for (int i = 0; i < windowSize; i++) {
@@ -377,7 +354,6 @@ WirelessPacket buildPacket(uint8_t messageType) {
   return packet;
 }
 
-// Failed sends, reported once a second
 unsigned long sendFailures = 0;
 unsigned long sendsAttempted = 0;
 
@@ -411,7 +387,7 @@ void sendStatus() {
   sendPacket(MSG_STATUS);
 }
 
-// Command reply; value is the target (or the refused one)
+// value = target, or the refused one
 void sendResponse(uint8_t messageType, uint8_t command, float value) {
   WirelessPacket packet = buildPacket(messageType);
   packet.command = command;
@@ -433,8 +409,7 @@ void resetDisplayWindow() {
 }
 
 void handleCommand(const WirelessPacket &packet) {
-  // STOP: relays off, IDLE, tare kept. RESET: same but tare cleared
-  // (no ESP.restart(): it left the board silent).
+  // RESET avoids ESP.restart(): it left the board silent
   if (packet.command == CMD_RESET || packet.command == CMD_STOP) {
     relaysOFF();
     targetN = 0;
@@ -456,7 +431,7 @@ void handleCommand(const WirelessPacket &packet) {
   }
 
   if (packet.command == CMD_TARE) {
-    // ACK first so the controller allows for the silent tare
+    // ACK first: the controller then allows for the silent tare
     sendResponse(MSG_ACK, CMD_TARE, targetN);
     relaysOFF();
     Serial.println("Remote tare requested.");
@@ -481,7 +456,6 @@ void handleCommand(const WirelessPacket &packet) {
   }
 
   if (packet.command == CMD_LOOSEN) {
-    // A repeat LOOSEN just restarts the timer
     if (toolState != LOOSENING) {
       loosenTared = tareValid;
       stateAfterLoosen = loosenTared ? READY : toolState;
@@ -501,7 +475,6 @@ void handleCommand(const WirelessPacket &packet) {
   }
 
   if (packet.command == CMD_SET_TARGET) {
-    // Needs a good tare
     if (!(packet.value > 0)) {   // also catches NaN
       Serial.println("Target refused: must be above 0 N.");
       sendResponse(MSG_NACK, CMD_SET_TARGET, packet.value);
@@ -553,7 +526,6 @@ void handleCommand(const WirelessPacket &packet) {
   }
 }
 
-// Queue commands for this tool or ALL
 void onDataReceived(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
   if (len != sizeof(WirelessPacket)) return;
 
@@ -588,8 +560,7 @@ bool popCommand(WirelessPacket &out) {
   return found;
 }
 
-// ===== Serial debug interface =====
-// Typed commands go through handleCommand() like radio commands. Type HELP for the list.
+// Serial debug: typed commands go through handleCommand(). HELP lists them.
 
 void printSerialHelp() {
   Serial.println("--- SERIAL DEBUG COMMANDS ---");
@@ -686,7 +657,6 @@ void printLocalStatus() {
   Serial.println(relaysOn ? "ON" : "OFF");
 }
 
-// Non-blocking line read
 bool readSerialLine(String &out) {
   static String buf;
   while (Serial.available()) {
@@ -758,7 +728,6 @@ void handleSerialCommand(String line) {
   }
 
   if (upperLine.startsWith("TARGET")) {
-    // TARGET,<N> or TARGET,<tool>,<N>
     int first = line.indexOf(',');
     int last = line.lastIndexOf(',');
     if (first < 0) {
@@ -833,7 +802,7 @@ bool setupWireless() {
 }
 
 void setup() {
-  // Relays off first (active-LOW)
+  // Relays off before anything else
   pinMode(RELAY_1_PIN, OUTPUT);
   pinMode(RELAY_2_PIN, OUTPUT);
   digitalWrite(RELAY_1_PIN, HIGH);
@@ -847,7 +816,7 @@ void setup() {
 
   Serial.begin(115200);
 
-  // Wait up to 2 s for a serial monitor
+  // Don't block forever: no PC on battery
   unsigned long serialWaitStart = millis();
   while (!Serial && millis() - serialWaitStart < 2000)
     delay(10);
@@ -869,7 +838,6 @@ void setup() {
     delay(500);
   }
 
-  // No auto-tare: wait for TARE
   toolState = IDLE;
   Serial.println("Idle. Waiting for TARE command from controller before use.");
 
@@ -901,10 +869,9 @@ void loop() {
     handleSerialCommand(serialLine);
   }
 
-  // TARE may have blocked
   now = millis();
 
-  // One HX711 read per loop, shared by all windows
+  // One HX711 read per loop: a second read would starve
   bool haveSample = false;
   long sample = 0;
   bool tared = tareValid;
@@ -917,7 +884,6 @@ void loop() {
       displayWindow[displayReadingsTaken++] = sample;
   }
 
-  // Display average over the last second
   if (now - lastDisplayAvgTime >= DISPLAY_AVG_INTERVAL_MS &&
       displayReadingsTaken >= MIN_DISPLAY_SAMPLES) {
     lastDisplayAvgTime = now;
@@ -926,7 +892,6 @@ void loop() {
     displayReadingsTaken = 0;
   }
 
-  // Loosening: stop after LOOSEN_TIMEOUT_MS
   if (toolState == LOOSENING) {
     if (haveSample && loosenTared) {
       latestReading = sample;
@@ -950,7 +915,7 @@ void loop() {
     return;
   }
 
-  // Not tightening: keep the filtered value live (shows bolts relaxing)
+  // Keep the value live so the dashboard sees bolts relax
   if (toolState == TARGET_REACHED || toolState == READY || toolState == STOPPED || toolState == IDLE) {
     if (haveSample) {
       latestReading = sample;
@@ -969,7 +934,6 @@ void loop() {
     return;
   }
 
-  // Safety: run timeout
   if (now - runStartTime >= MAX_RUN_MS) {
     relaysOFF();
     toolState = STOPPED;
@@ -997,7 +961,7 @@ void loop() {
   windowWriteIndex = (windowWriteIndex + 1) % WINDOW_SIZE;
   totalReadingsTaken++;
 
-  // Check from MIN_DETECT_READINGS, not a full window
+  // Don't wait for a full window: stop as soon as possible
   if (totalReadingsTaken < MIN_DETECT_READINGS) return;
   int filled = totalReadingsTaken < WINDOW_SIZE ? (int)totalReadingsTaken : WINDOW_SIZE;
 
@@ -1015,7 +979,7 @@ void loop() {
     Serial.println(" N)");
   }
 
-  // Safety: over-force on the filtered value (not raw, to ignore spikes)
+  // Over-force on the filtered value so one spike can't stop a run
   overMaxReadings = filteredMeasuredCounts > maxCounts ? overMaxReadings + 1 : 0;
   if (overMaxReadings >= MAX_FORCE_READINGS) {
     relaysOFF();

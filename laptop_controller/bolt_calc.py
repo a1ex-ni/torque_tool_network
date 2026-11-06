@@ -1,7 +1,4 @@
-"""
-bolt_calc.py: target tension and torque from bolt_profiles.json (API 6A Tables H.1 / H.2),
-for the chosen bolt stress and friction factor.
-"""
+"""Target tension and torque from API 6A Tables H.1 / H.2 (bolt_profiles.json)."""
 
 from __future__ import annotations
 
