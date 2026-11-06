@@ -1,0 +1,793 @@
+{
+  "_note": "Bolt tension and make-up torque from API 6A Table H.1 (SI) and H.2 (USC), per stud size (diameter-TPI; diameter_mm and pitch_mm are the metric equivalents, for display only). For a flange, the operator picks an allowable bolt stress (metric or imperial list) and a friction factor f; the target tension and torque are read from these tables. max_over_target_pct sets the maximum (over-torque) tension and torque above the minimum target: max = min + 25% by default; any bolt going over it stops every tool. flange_overrides caps the bolt stress for flanges named in H.3.3. A bolt with \"custom\" uses fixed target_n / max_n in newtons instead of the tables. Equation-based targets (API 6A Annex H formulas) can be added later as another bolt or stress method.",
+  "settings": {
+    "max_over_target_pct": 25
+  },
+  "stress_options": [
+    {
+      "id": "275MPa",
+      "system": "metric",
+      "label": "275 MPa",
+      "note": "Studs with Sy = 550 MPa",
+      "stress": 275,
+      "unit": "MPa"
+    },
+    {
+      "id": "360MPa",
+      "system": "metric",
+      "label": "360 MPa",
+      "note": "Studs with Sy = 720 MPa",
+      "stress": 360,
+      "unit": "MPa"
+    },
+    {
+      "id": "327.5MPa",
+      "system": "metric",
+      "label": "327.5 MPa",
+      "note": "Studs with Sy = 655 MPa (2-5/8 in and larger)",
+      "stress": 327.5,
+      "unit": "MPa"
+    },
+    {
+      "id": "40ksi",
+      "system": "imperial",
+      "label": "40 ksi",
+      "note": "Studs with Sy = 80 ksi",
+      "stress": 40,
+      "unit": "ksi"
+    },
+    {
+      "id": "52.5ksi",
+      "system": "imperial",
+      "label": "52.5 ksi",
+      "note": "Studs with Sy = 105 ksi",
+      "stress": 52.5,
+      "unit": "ksi"
+    },
+    {
+      "id": "47.5ksi",
+      "system": "imperial",
+      "label": "47.5 ksi",
+      "note": "Studs with Sy = 95 ksi (2-5/8 in and larger)",
+      "stress": 47.5,
+      "unit": "ksi"
+    }
+  ],
+  "friction_factors": [
+    0.07,
+    0.13
+  ],
+  "flange_overrides": [
+    {
+      "flange": "API6A_13-5-8_2K_6B",
+      "max_stress": [
+        "275MPa",
+        "40ksi"
+      ]
+    },
+    {
+      "flange": "API6A_16-3-4_2K_6B",
+      "max_stress": [
+        "275MPa",
+        "40ksi"
+      ]
+    },
+    {
+      "flange": "API6A_21-1-4_2K_6B",
+      "max_stress": [
+        "275MPa",
+        "40ksi"
+      ]
+    },
+    {
+      "flange": "API6A_13-5-8_3K_6B",
+      "max_stress": [
+        "275MPa",
+        "40ksi"
+      ]
+    }
+  ],
+  "bolts": {
+    "1/2-13": {
+      "diameter_in": 0.5,
+      "tpi": 13,
+      "diameter_mm": 12.7,
+      "pitch_mm": 1.954,
+      "ratings": {
+        "275MPa": {
+          "tension_kN": 25,
+          "torque_Nm": {
+            "0.07": 36,
+            "0.13": 61
+          }
+        },
+        "360MPa": {
+          "tension_kN": 33,
+          "torque_Nm": {
+            "0.07": 48,
+            "0.13": 80
+          }
+        },
+        "40ksi": {
+          "tension_lbf": 5676,
+          "torque_ftlbf": {
+            "0.07": 27,
+            "0.13": 45
+          }
+        },
+        "52.5ksi": {
+          "tension_lbf": 7450,
+          "torque_ftlbf": {
+            "0.07": 35,
+            "0.13": 59
+          }
+        }
+      }
+    },
+    "5/8-11": {
+      "diameter_in": 0.625,
+      "tpi": 11,
+      "diameter_mm": 15.88,
+      "pitch_mm": 2.309,
+      "ratings": {
+        "275MPa": {
+          "tension_kN": 40,
+          "torque_Nm": {
+            "0.07": 70,
+            "0.13": 118
+          }
+        },
+        "360MPa": {
+          "tension_kN": 52,
+          "torque_Nm": {
+            "0.07": 92,
+            "0.13": 155
+          }
+        },
+        "40ksi": {
+          "tension_lbf": 9040,
+          "torque_ftlbf": {
+            "0.07": 52,
+            "0.13": 88
+          }
+        },
+        "52.5ksi": {
+          "tension_lbf": 11865,
+          "torque_ftlbf": {
+            "0.07": 68,
+            "0.13": 115
+          }
+        }
+      }
+    },
+    "3/4-10": {
+      "diameter_in": 0.75,
+      "tpi": 10,
+      "diameter_mm": 19.05,
+      "pitch_mm": 2.54,
+      "ratings": {
+        "275MPa": {
+          "tension_kN": 59,
+          "torque_Nm": {
+            "0.07": 122,
+            "0.13": 206
+          }
+        },
+        "360MPa": {
+          "tension_kN": 78,
+          "torque_Nm": {
+            "0.07": 160,
+            "0.13": 270
+          }
+        },
+        "40ksi": {
+          "tension_lbf": 13378,
+          "torque_ftlbf": {
+            "0.07": 90,
+            "0.13": 153
+          }
+        },
+        "52.5ksi": {
+          "tension_lbf": 17559,
+          "torque_ftlbf": {
+            "0.07": 118,
+            "0.13": 200
+          }
+        }
+      }
+    },
+    "7/8-9": {
+      "diameter_in": 0.875,
+      "tpi": 9,
+      "diameter_mm": 22.22,
+      "pitch_mm": 2.822,
+      "ratings": {
+        "275MPa": {
+          "tension_kN": 82,
+          "torque_Nm": {
+            "0.07": 193,
+            "0.13": 328
+          }
+        },
+        "360MPa": {
+          "tension_kN": 107,
+          "torque_Nm": {
+            "0.07": 253,
+            "0.13": 429
+          }
+        },
+        "40ksi": {
+          "tension_lbf": 18469,
+          "torque_ftlbf": {
+            "0.07": 143,
+            "0.13": 243
+          }
+        },
+        "52.5ksi": {
+          "tension_lbf": 24241,
+          "torque_ftlbf": {
+            "0.07": 188,
+            "0.13": 319
+          }
+        }
+      }
+    },
+    "1-8": {
+      "diameter_in": 1.0,
+      "tpi": 8,
+      "diameter_mm": 25.4,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "275MPa": {
+          "tension_kN": 107,
+          "torque_Nm": {
+            "0.07": 288,
+            "0.13": 488
+          }
+        },
+        "360MPa": {
+          "tension_kN": 141,
+          "torque_Nm": {
+            "0.07": 376,
+            "0.13": 639
+          }
+        },
+        "40ksi": {
+          "tension_lbf": 24230,
+          "torque_ftlbf": {
+            "0.07": 213,
+            "0.13": 361
+          }
+        },
+        "52.5ksi": {
+          "tension_lbf": 31802,
+          "torque_ftlbf": {
+            "0.07": 279,
+            "0.13": 474
+          }
+        }
+      }
+    },
+    "1-1/8-8": {
+      "diameter_in": 1.125,
+      "tpi": 8,
+      "diameter_mm": 28.57,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "275MPa": {
+          "tension_kN": 140,
+          "torque_Nm": {
+            "0.07": 413,
+            "0.13": 706
+          }
+        },
+        "360MPa": {
+          "tension_kN": 184,
+          "torque_Nm": {
+            "0.07": 540,
+            "0.13": 925
+          }
+        },
+        "40ksi": {
+          "tension_lbf": 31618,
+          "torque_ftlbf": {
+            "0.07": 305,
+            "0.13": 523
+          }
+        },
+        "52.5ksi": {
+          "tension_lbf": 41499,
+          "torque_ftlbf": {
+            "0.07": 401,
+            "0.13": 686
+          }
+        }
+      }
+    },
+    "1-1/4-8": {
+      "diameter_in": 1.25,
+      "tpi": 8,
+      "diameter_mm": 31.75,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "275MPa": {
+          "tension_kN": 177,
+          "torque_Nm": {
+            "0.07": 569,
+            "0.13": 981
+          }
+        },
+        "360MPa": {
+          "tension_kN": 232,
+          "torque_Nm": {
+            "0.07": 745,
+            "0.13": 1285
+          }
+        },
+        "40ksi": {
+          "tension_lbf": 39988,
+          "torque_ftlbf": {
+            "0.07": 421,
+            "0.13": 726
+          }
+        },
+        "52.5ksi": {
+          "tension_lbf": 52484,
+          "torque_ftlbf": {
+            "0.07": 553,
+            "0.13": 953
+          }
+        }
+      }
+    },
+    "1-3/8-8": {
+      "diameter_in": 1.375,
+      "tpi": 8,
+      "diameter_mm": 34.92,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "275MPa": {
+          "tension_kN": 219,
+          "torque_Nm": {
+            "0.07": 761,
+            "0.13": 1320
+          }
+        },
+        "360MPa": {
+          "tension_kN": 286,
+          "torque_Nm": {
+            "0.07": 996,
+            "0.13": 1727
+          }
+        },
+        "40ksi": {
+          "tension_lbf": 49340,
+          "torque_ftlbf": {
+            "0.07": 563,
+            "0.13": 976
+          }
+        },
+        "52.5ksi": {
+          "tension_lbf": 64759,
+          "torque_ftlbf": {
+            "0.07": 739,
+            "0.13": 1281
+          }
+        }
+      }
+    },
+    "1-1/2-8": {
+      "diameter_in": 1.5,
+      "tpi": 8,
+      "diameter_mm": 38.1,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "275MPa": {
+          "tension_kN": 265,
+          "torque_Nm": {
+            "0.07": 991,
+            "0.13": 1727
+          }
+        },
+        "360MPa": {
+          "tension_kN": 346,
+          "torque_Nm": {
+            "0.07": 1297,
+            "0.13": 2261
+          }
+        },
+        "40ksi": {
+          "tension_lbf": 59674,
+          "torque_ftlbf": {
+            "0.07": 733,
+            "0.13": 1278
+          }
+        },
+        "52.5ksi": {
+          "tension_lbf": 78322,
+          "torque_ftlbf": {
+            "0.07": 962,
+            "0.13": 1677
+          }
+        }
+      }
+    },
+    "1-5/8-8": {
+      "diameter_in": 1.625,
+      "tpi": 8,
+      "diameter_mm": 41.27,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "275MPa": {
+          "tension_kN": 315,
+          "torque_Nm": {
+            "0.07": 1263,
+            "0.13": 2211
+          }
+        },
+        "360MPa": {
+          "tension_kN": 412,
+          "torque_Nm": {
+            "0.07": 1653,
+            "0.13": 2894
+          }
+        },
+        "40ksi": {
+          "tension_lbf": 70989,
+          "torque_ftlbf": {
+            "0.07": 934,
+            "0.13": 1635
+          }
+        },
+        "52.5ksi": {
+          "tension_lbf": 93173,
+          "torque_ftlbf": {
+            "0.07": 1226,
+            "0.13": 2146
+          }
+        }
+      }
+    },
+    "1-3/4-8": {
+      "diameter_in": 1.75,
+      "tpi": 8,
+      "diameter_mm": 44.45,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "275MPa": {
+          "tension_kN": 369,
+          "torque_Nm": {
+            "0.07": 1581,
+            "0.13": 2777
+          }
+        },
+        "360MPa": {
+          "tension_kN": 484,
+          "torque_Nm": {
+            "0.07": 2069,
+            "0.13": 3636
+          }
+        },
+        "40ksi": {
+          "tension_lbf": 83286,
+          "torque_ftlbf": {
+            "0.07": 1169,
+            "0.13": 2054
+          }
+        },
+        "52.5ksi": {
+          "tension_lbf": 109313,
+          "torque_ftlbf": {
+            "0.07": 1534,
+            "0.13": 2696
+          }
+        }
+      }
+    },
+    "1-7/8-8": {
+      "diameter_in": 1.875,
+      "tpi": 8,
+      "diameter_mm": 47.62,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "275MPa": {
+          "tension_kN": 428,
+          "torque_Nm": {
+            "0.07": 1947,
+            "0.13": 3433
+          }
+        },
+        "360MPa": {
+          "tension_kN": 561,
+          "torque_Nm": {
+            "0.07": 2549,
+            "0.13": 4493
+          }
+        },
+        "40ksi": {
+          "tension_lbf": 96565,
+          "torque_ftlbf": {
+            "0.07": 1440,
+            "0.13": 2539
+          }
+        },
+        "52.5ksi": {
+          "tension_lbf": 126741,
+          "torque_ftlbf": {
+            "0.07": 1890,
+            "0.13": 3332
+          }
+        }
+      }
+    },
+    "2-8": {
+      "diameter_in": 2.0,
+      "tpi": 8,
+      "diameter_mm": 50.8,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "275MPa": {
+          "tension_kN": 492,
+          "torque_Nm": {
+            "0.07": 2366,
+            "0.13": 4183
+          }
+        },
+        "360MPa": {
+          "tension_kN": 644,
+          "torque_Nm": {
+            "0.07": 3097,
+            "0.13": 5476
+          }
+        },
+        "40ksi": {
+          "tension_lbf": 110825,
+          "torque_ftlbf": {
+            "0.07": 1750,
+            "0.13": 3094
+          }
+        },
+        "52.5ksi": {
+          "tension_lbf": 145458,
+          "torque_ftlbf": {
+            "0.07": 2297,
+            "0.13": 4061
+          }
+        }
+      }
+    },
+    "2-1/4-8": {
+      "diameter_in": 2.25,
+      "tpi": 8,
+      "diameter_mm": 57.15,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "275MPa": {
+          "tension_kN": 631,
+          "torque_Nm": {
+            "0.07": 3375,
+            "0.13": 5997
+          }
+        },
+        "360MPa": {
+          "tension_kN": 826,
+          "torque_Nm": {
+            "0.07": 4418,
+            "0.13": 7851
+          }
+        },
+        "40ksi": {
+          "tension_lbf": 142292,
+          "torque_ftlbf": {
+            "0.07": 2496,
+            "0.13": 4436
+          }
+        },
+        "52.5ksi": {
+          "tension_lbf": 186758,
+          "torque_ftlbf": {
+            "0.07": 3276,
+            "0.13": 5822
+          }
+        }
+      }
+    },
+    "2-1/2-8": {
+      "diameter_in": 2.5,
+      "tpi": 8,
+      "diameter_mm": 63.5,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "275MPa": {
+          "tension_kN": 788,
+          "torque_Nm": {
+            "0.07": 4635,
+            "0.13": 8271
+          }
+        },
+        "360MPa": {
+          "tension_kN": 1032,
+          "torque_Nm": {
+            "0.07": 6068,
+            "0.13": 10828
+          }
+        },
+        "40ksi": {
+          "tension_lbf": 177685,
+          "torque_ftlbf": {
+            "0.07": 3429,
+            "0.13": 6118
+          }
+        },
+        "52.5ksi": {
+          "tension_lbf": 233212,
+          "torque_ftlbf": {
+            "0.07": 4500,
+            "0.13": 8030
+          }
+        }
+      }
+    },
+    "2-5/8-8": {
+      "diameter_in": 2.625,
+      "tpi": 8,
+      "diameter_mm": 66.67,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "327.5MPa": {
+          "tension_kN": 1040,
+          "torque_Nm": {
+            "0.07": 6394,
+            "0.13": 11429
+          }
+        },
+        "47.5ksi": {
+          "tension_lbf": 233765,
+          "torque_ftlbf": {
+            "0.07": 4716,
+            "0.13": 8430
+          }
+        }
+      }
+    },
+    "2-3/4-8": {
+      "diameter_in": 2.75,
+      "tpi": 8,
+      "diameter_mm": 69.85,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "327.5MPa": {
+          "tension_kN": 1146,
+          "torque_Nm": {
+            "0.07": 7354,
+            "0.13": 13168
+          }
+        },
+        "47.5ksi": {
+          "tension_lbf": 257694,
+          "torque_ftlbf": {
+            "0.07": 5424,
+            "0.13": 9712
+          }
+        }
+      }
+    },
+    "3-8": {
+      "diameter_in": 3.0,
+      "tpi": 8,
+      "diameter_mm": 76.2,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "327.5MPa": {
+          "tension_kN": 1375,
+          "torque_Nm": {
+            "0.07": 9555,
+            "0.13": 17156
+          }
+        },
+        "47.5ksi": {
+          "tension_lbf": 309050,
+          "torque_ftlbf": {
+            "0.07": 7047,
+            "0.13": 12654
+          }
+        }
+      }
+    },
+    "3-1/4-8": {
+      "diameter_in": 3.25,
+      "tpi": 8,
+      "diameter_mm": 82.55,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "327.5MPa": {
+          "tension_kN": 1624,
+          "torque_Nm": {
+            "0.07": 12154,
+            "0.13": 21878
+          }
+        },
+        "47.5ksi": {
+          "tension_lbf": 365070,
+          "torque_ftlbf": {
+            "0.07": 8965,
+            "0.13": 16136
+          }
+        }
+      }
+    },
+    "3-3/4-8": {
+      "diameter_in": 3.75,
+      "tpi": 8,
+      "diameter_mm": 95.25,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "327.5MPa": {
+          "tension_kN": 2185,
+          "torque_Nm": {
+            "0.07": 18685,
+            "0.13": 33766
+          }
+        },
+        "47.5ksi": {
+          "tension_lbf": 491099,
+          "torque_ftlbf": {
+            "0.07": 13782,
+            "0.13": 24905
+          }
+        }
+      }
+    },
+    "3-7/8-8": {
+      "diameter_in": 3.875,
+      "tpi": 8,
+      "diameter_mm": 98.42,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "327.5MPa": {
+          "tension_kN": 2338,
+          "torque_Nm": {
+            "0.07": 20620,
+            "0.13": 37293
+          }
+        },
+        "47.5ksi": {
+          "tension_lbf": 525521,
+          "torque_ftlbf": {
+            "0.07": 15208,
+            "0.13": 27506
+          }
+        }
+      }
+    },
+    "4-8": {
+      "diameter_in": 4.0,
+      "tpi": 8,
+      "diameter_mm": 101.6,
+      "pitch_mm": 3.175,
+      "ratings": {
+        "327.5MPa": {
+          "tension_kN": 2496,
+          "torque_Nm": {
+            "0.07": 22683,
+            "0.13": 41057
+          }
+        },
+        "47.5ksi": {
+          "tension_lbf": 561108,
+          "torque_ftlbf": {
+            "0.07": 16730,
+            "0.13": 30282
+          }
+        }
+      }
+    },
+    "BENCH": {
+      "description": "Bench test rig with the proof-of-concept load cell. Fixed target, not from API 6A.",
+      "custom": {
+        "target_n": 50,
+        "max_n": 62.5
+      }
+    }
+  }
+}

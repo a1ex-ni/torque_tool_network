@@ -1,0 +1,11 @@
+﻿flange,Bench test (2 tools)
+started,2026-10-29T17:57:28
+result,complete,All bolts reached target.
+stud,BENCH,bolt_count,2
+setting,Fixed bench target
+target_kN,0.050,target_lbf,11
+max_kN,0.062,max_lbf,14
+
+bolt,tool_id,group,status,final_kN,final_lbf,load_cell_N,retightens,note
+1,TOOL_01,1,reached,0.050,11,50.02,0,
+2,TOOL_02,1,reached,0.050,11,50.02,0,

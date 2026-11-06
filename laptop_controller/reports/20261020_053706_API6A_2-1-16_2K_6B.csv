@@ -1,0 +1,18 @@
+flange,"2-1/16"" 2K 6B"
+started,2026-10-20T05:37:04
+result,cancelled,Cancelled. All tools stopped.
+stud,5/8-11,bolt_count,8
+setting,"360 MPa, f = 0.13"
+target_kN,52.000,target_lbf,11690
+max_kN,54.600,max_lbf,12275
+target_tension,52,kN,torque,155,N¡Pm
+
+bolt,tool_id,group,status,final_kN,final_lbf,load_cell_N,note
+1,TOOL_01,1,stopped,,,,
+2,TOOL_02,1,stopped,,,,
+3,TOOL_03,1,stopped,,,,
+4,TOOL_04,1,stopped,,,,
+5,TOOL_05,1,stopped,,,,
+6,TOOL_06,1,stopped,,,,
+7,TOOL_07,1,stopped,,,,
+8,TOOL_08,1,stopped,,,,

@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flange Tightening</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --case: #2b2d2f;
+    --case-edge: #1a1b1c;
+    --bezel: #a9a39a;
+    --screen-bg: #eceef0;
+    --header: #3e4c5c;
+    --header-dark: #2f3b48;
+    --ink: #1f2a33;
+    --ink-dim: #5f6b75;
+    --line: #c9ced3;
+    --blue: #2e6fdc;
+    --blue-dark: #2459b6;
+    --green: #2f9e5b;
+    --amber: #f0b429;
+    --red: #d1453b;
+    --slate: #3b4856;
+    --slate-light: #8794a1;
+    --mono: Consolas, "SF Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 30%, #4a4d50, #1b1c1e 70%);
+    font-family: "Segoe UI", Roboto, -apple-system, sans-serif;
+    padding: 24px 12px;
+  }
+
+  /* ---------- Rugged tablet ---------- */
+  .tablet {
+    width: 460px;
+    max-width: 100%;
+    background: linear-gradient(160deg, var(--case), var(--case-edge));
+    border-radius: 34px;
+    padding: 14px;
+    box-shadow: 0 24px 70px rgba(0,0,0,0.6), inset 0 0 0 2px rgba(255,255,255,0.06);
+  }
+  .bezel {
+    background: linear-gradient(170deg, #b8b2a8, #8f897f);
+    border-radius: 24px;
+    padding: 16px 14px 10px;
+  }
+  .screen {
+    background: #0c0e10;
+    border-radius: 10px;
+    padding: 6px;
+  }
+  .display {
+    background: var(--screen-bg);
+    border-radius: 4px;
+    overflow: hidden;
+    height: 780px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .statusbar {
+    background: #11161b;
+    color: #cfd6dc;
+    font-size: 11px;
+    padding: 4px 10px;
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+  }
+  .statusbar .link.off { color: #ff8a80; }
+  .androidnav {
+    display: flex;
+    justify-content: center;
+    gap: 70px;
+    padding: 8px 0 6px;
+    background: #0c0e10;
+    color: #c8ccd0;
+    font-size: 13px;
+  }
+
+  /* ---------- Header ---------- */
+  .header {
+    background: linear-gradient(180deg, var(--header), var(--header-dark));
+    color: #fff;
+    padding: 11px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 19px;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+  .header .back { font-size: 22px; opacity: 0.85; cursor: pointer; width: 14px; }
+  .header .unit-btn {
+    margin-left: auto;
+    min-width: 38px; height: 26px; padding: 0 6px;
+    border: 1.5px solid rgba(255,255,255,0.6);
+    border-radius: 13px;
+    display: grid; place-items: center;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+  }
+  .header .gear {
+    width: 26px; height: 26px;
+    border: 1.5px solid rgba(255,255,255,0.6);
+    border-radius: 5px;
+    display: grid; place-items: center;
+    font-size: 15px;
+    cursor: pointer;
+  }
+
+  .content { flex: 1; min-height: 0; padding: 14px 14px 12px; overflow-y: auto; color: var(--ink); display: flex; flex-direction: column; }
+  .screen-pane { display: none; flex-direction: column; flex: 1; min-height: 0; }
+  .screen-pane.on { display: flex; }
+
+  /* ---------- Selection ---------- */
+  .field-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 14px; color: var(--ink); }
+  select.big, input.search {
+    padding: 8px 10px;
+    border: 1px solid #aeb5bc;
+    border-radius: 3px;
+    background: linear-gradient(#fff, #eef0f2);
+    font-size: 15px;
+    color: var(--ink);
+    font-family: inherit;
+  }
+  select.big { width: 100%; }
+  .search-wrap { position: relative; }
+  input.search { width: 100%; padding-left: 32px; background: #fff; }
+  .search-wrap::before { content: "⌕"; position: absolute; left: 10px; top: 6px; font-size: 18px; color: var(--ink-dim); }
+
+  /* List scrolls so the filters and Start button stay visible */
+  .flange-list { margin-top: 12px; border: 1px solid #9aa3ac; border-radius: 4px; overflow: hidden; background: #fff;
+                 flex: 1; min-height: 120px; display: flex; flex-direction: column; }
+  .flange-list .head { flex-shrink: 0; }
+  #flangeList { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  .flange-list .head { background: linear-gradient(var(--header), var(--header-dark)); color: #fff; padding: 11px 12px; font-size: 18px; }
+  .flange-row {
+    padding: 6px 12px;
+    align-items: center;
+    border-top: 1px solid #d7dbdf;
+    font-size: 18px;
+    display: flex;
+    justify-content: space-between;
+    cursor: pointer;
+    background: linear-gradient(#fff, #f2f4f6);
+  }
+  .flange-row .name { display: flex; align-items: center; gap: 10px; }
+  .flange-row .thumb { width: 34px; height: 34px; flex-shrink: 0; }
+  .flange-row.selected .thumb { filter: drop-shadow(0 0 1px #fff); }
+  .flange-row .meta { font-size: 12px; color: var(--ink-dim); margin-left: 6px; }
+  .flange-row.selected { background: linear-gradient(#3f86f0, var(--blue)); color: #fff; }
+  .flange-row.selected .meta { color: #dbe7ff; }
+  .flange-row .chev { opacity: 0.6; }
+  .empty { padding: 14px; color: var(--ink-dim); font-size: 14px; }
+
+  .btn {
+    width: 100%;
+    padding: 11px;
+    border: 1px solid var(--blue-dark);
+    border-radius: 5px;
+    background: linear-gradient(#4b8ef2, var(--blue));
+    color: #fff;
+    font-size: 19px;
+    margin-top: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  }
+  .btn.dark { background: linear-gradient(#56636f, #36414c); border-color: #2a333c; }
+  .btn.slim { width: auto; padding: 7px 46px; font-size: 17px; margin: 10px auto 0; display: block; }
+  .btn:disabled { opacity: 0.45; cursor: default; }
+  .footnote { text-align: center; font-size: 15px; color: var(--ink); margin-top: 12px; }
+  .spacer { flex: 1; }
+
+  /* ---------- Tightening ---------- */
+  .flange-name { font-size: 19px; font-weight: 600; text-align: center; margin: 2px 0 6px; }
+  .diagram-wrap { display: flex; justify-content: center; }
+  .info-line { font-size: 17px; margin: 3px 4px; }
+  .phase-line { font-size: 13px; color: var(--ink-dim); text-align: center; margin: 2px 0 4px; min-height: 18px; }
+
+  .bolt-bars { display: flex; gap: 3px; margin: 8px 0 4px; justify-content: center; }
+  .bolt-bar-track { max-width: 100%; }
+  .bolt-bar-col { display: flex; flex-direction: column; align-items: center; width: var(--col, 27px); }
+  .bolt-bar-track {
+    width: 18px; height: 52px;
+    background: linear-gradient(90deg, #d5d9dd, #eef0f2, #d5d9dd);
+    border: 1px solid #9aa3ac;
+    border-radius: 2px;
+    display: flex;
+    flex-direction: column-reverse;
+    overflow: hidden;
+    position: relative;
+  }
+  .bolt-bar-track::before { content: ""; position: absolute; top: -5px; left: -2px; right: -2px; height: 4px; border: 1px solid #9aa3ac; border-radius: 2px; }
+  .bolt-bar-fill { width: 100%; transition: height 0.25s linear; }
+  .bolt-bar-label { font-size: 12px; color: var(--ink); margin-top: 3px; }
+  .bolt-bar-value { font-size: 10px; color: var(--ink-dim); font-family: var(--mono); }
+
+  .callout { border-top: 1px solid var(--line); padding: 8px 6px 4px; margin-top: 6px; }
+  .callout .title { font-weight: 600; font-size: 18px; margin-bottom: 2px; }
+  .callout .title.bad { color: var(--red); }
+  .callout .row { font-size: 16px; color: var(--ink); }
+
+  .saved-flag { text-align: center; color: var(--ink); font-size: 16px; margin: 8px 0 4px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .saved-flag .tick { color: var(--green); font-weight: 700; }
+  .bolt-table {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 18px;
+    font-size: 15px;
+    margin-top: 6px;
+    border-top: 1px solid var(--line);
+    padding-top: 6px;
+  }
+  .bolt-table div { display: flex; justify-content: space-between; }
+  .bolt-table .bad { color: var(--red); }
+  .bolt-table .sub { font-size: 12px; color: var(--ink-dim); }
+
+  /* ---------- Bolt tool picker ---------- */
+  .sheet-backdrop { position: absolute; inset: 0; background: rgba(15,20,25,0.45); display: none; align-items: flex-end; z-index: 6; }
+  .sheet-backdrop.on { display: flex; }
+  .sheet { background: var(--screen-bg); width: 100%; border-radius: 10px 10px 0 0; padding: 12px 14px 14px; max-height: 75%; display: flex; flex-direction: column; }
+  .sheet-title { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  #pickerList { overflow-y: auto; border: 1px solid #c9ced3; border-radius: 4px; background: #fff; }
+  .pick { display: flex; justify-content: space-between; align-items: center; padding: 9px 10px; border-bottom: 1px solid #e3e6e9; font-size: 15px; cursor: pointer; }
+  .pick:last-child { border-bottom: none; }
+  .pick.on { background: linear-gradient(#3f86f0, var(--blue)); color: #fff; }
+  .pick .sub { font-size: 12px; opacity: 0.75; font-family: var(--mono); }
+  .pick.off { color: var(--ink-dim); }
+  .bolt-hit { cursor: pointer; }
+  .hint { font-size: 13px; color: var(--ink-dim); text-align: center; }
+
+  /* ---------- Tools panel ---------- */
+  .panel {
+    position: absolute; inset: 21px 0 0 0;
+    background: var(--screen-bg);
+    display: none; flex-direction: column;
+    z-index: 5;
+  }
+  .panel.on { display: flex; }
+  .tool-row {
+    display: grid; grid-template-columns: 74px 1fr 70px 34px 62px;
+    gap: 6px; align-items: center;
+    padding: 8px 6px; border-bottom: 1px solid #d7dbdf; font-size: 14px;
+  }
+  .tool-row .st { font-size: 12px; font-family: var(--mono); color: var(--ink-dim); }
+  .tool-row .n { text-align: right; font-family: var(--mono); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .relay { font-size: 11px; color: var(--ink-dim); text-align: center; }
+  .relay.on { color: var(--amber); font-weight: 700; }
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
+  .btn.amber { background: linear-gradient(#e0a64a, #c4831f); border-color: #9c6514; }
+  .loosen-btn {
+    padding: 4px 0; font-size: 12px; font-family: inherit; cursor: pointer;
+    border: 1px solid #9c6514; border-radius: 4px; color: #fff;
+    background: linear-gradient(#e0a64a, #c4831f);
+  }
+  .loosen-btn:disabled { opacity: 0.4; cursor: default; }
+  .tool-row .st.loosening { color: #c4831f; font-weight: 700; }
+  .btn-row .btn { font-size: 15px; margin-top: 8px; }
+  .log { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); white-space: pre-wrap; margin-top: 10px; max-height: 140px; overflow-y: auto; }
+  .note { font-size: 12px; color: var(--ink-dim); margin-top: 8px; }
+  .info-line.bench { font-size: 13px; color: #8a5a00; background: #fff4d6; border: 1px solid #f0d58a; border-radius: 4px; padding: 4px 8px; }
+</style>
+</head>
+<body>
+
+<div class="tablet"><div class="bezel"><div class="screen">
+  <div class="display">
+    <div class="statusbar">
+      <span id="clock">--:--</span>
+      <span><span id="linkInfo" class="link">connecting…</span> &nbsp; <span id="toolsOnline">0 tools</span></span>
+    </div>
+
+    <!-- ===== SELECTION ===== -->
+    <div id="screen-select" class="screen-pane on">
+      <div class="header"><span class="back">‹</span> API 6A Flange Selection <span class="unit-btn" onclick="toggleUnits()" title="Switch between metric and imperial">Metric</span><span class="gear" onclick="openTools()" title="Tools">⚙</span></div>
+      <div class="content">
+        <select class="big" id="typeSel" onchange="renderFlangeList()"></select>
+        <div class="field-row" style="margin-top:10px">Pressure Class:
+          <select class="big" id="classSel" style="flex:1" onchange="renderFlangeList()"></select>
+        </div>
+        <div class="search-wrap"><input class="search" id="search" placeholder="Search Flanges" oninput="renderFlangeList()"></div>
+
+        <div class="flange-list">
+          <div class="head" id="listHead">Flanges</div>
+          <div id="flangeList"></div>
+        </div>
+
+        <button class="btn" id="startSelectionBtn" disabled onclick="goToTighten()">Start Selection</button>
+        <div class="footnote" id="socketNote">Socket Size Detected: —</div>
+      </div>
+    </div>
+
+    <!-- ===== TIGHTENING ===== -->
+    <div id="screen-tighten" class="screen-pane">
+      <div class="header"><span class="back" onclick="backFromTighten()">‹</span> Tightening in Progress <span class="unit-btn" onclick="toggleUnits()" title="Switch between metric and imperial">Metric</span><span class="gear" onclick="openTools()" title="Tools">⚙</span></div>
+      <div class="content">
+        <div class="flange-name" id="tightenFlangeName">—</div>
+        <div class="diagram-wrap" id="diagramWrap"></div>
+        <div class="phase-line" id="phaseLine"></div>
+
+        <div id="infoBlock">
+          <div id="setupBlock">
+            <div class="field-row">Bolt Stress:
+              <select class="big" id="stressSel" style="flex:1" onchange="setupChanged()"></select>
+            </div>
+            <div class="field-row">Friction Factor f:
+              <select class="big" id="frictionSel" style="flex:1" onchange="setupChanged()"></select>
+            </div>
+          </div>
+          <div class="info-line">Stud: <span id="infoStud">—</span></div>
+          <div class="info-line">Min Preload (Target): <span id="infoTarget">—</span></div>
+          <div class="info-line">Min Torque: <span id="infoTorque">—</span></div>
+          <div class="info-line">Max Preload: <span id="infoMax">—</span></div>
+          <div class="info-line">Max Torque: <span id="infoMaxTorque">—</span></div>
+          <div class="info-line bench" id="infoBench" style="display:none"></div>
+          <div class="info-line">Number of Bolts: <span id="infoCount">—</span></div>
+          <div class="info-line">Tools Attached: <span id="infoTools">—</span></div>
+        </div>
+
+        <div class="bolt-bars" id="boltBars" style="display:none"></div>
+        <div class="phase-line" id="liveLine"></div>
+
+        <div id="callout" class="callout" style="display:none">
+          <div class="title bad" id="calloutTitle"></div>
+          <div class="row" id="calloutCurrent"></div>
+          <div class="row" id="calloutTarget"></div>
+        </div>
+
+        <div class="spacer"></div>
+        <button class="btn" id="startTighteningBtn" onclick="startTightening()">Start Tightening</button>
+        <button class="btn dark slim" id="cancelBtn" onclick="cancelTightening()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- ===== COMPLETED ===== -->
+    <div id="screen-complete" class="screen-pane">
+      <div class="header"><span class="back" onclick="showScreen('select')">‹</span> <span id="completeTitle">Tightening Completed</span> <span class="unit-btn" onclick="toggleUnits()" title="Switch between metric and imperial">Metric</span><span class="gear" onclick="openTools()" title="Tools">⚙</span></div>
+      <div class="content">
+        <div class="flange-name" id="completeSummary" style="font-size:17px;font-weight:500">—</div>
+        <div class="diagram-wrap" id="diagramWrapComplete"></div>
+
+        <div id="calloutComplete" class="callout" style="display:none">
+          <div class="title bad" id="calloutCompleteTitle"></div>
+          <div class="row" id="calloutCompleteCurrent"></div>
+          <div class="row" id="calloutCompleteTarget"></div>
+        </div>
+
+        <div class="saved-flag" id="savedFlag"></div>
+        <div class="bolt-table" id="boltTable"></div>
+
+        <div class="spacer"></div>
+        <button class="btn" id="nextGroupBtn" onclick="goToTighten(true)">Next Tool Group</button>
+        <button class="btn dark slim" onclick="saveReport()">🗀 Save Report</button>
+      </div>
+    </div>
+
+    <!-- ===== BOLT TOOL PICKER ===== -->
+    <div id="picker" class="sheet-backdrop" onclick="if (event.target === this) closePicker()">
+      <div class="sheet">
+        <div class="sheet-title" id="pickerTitle">Bolt</div>
+        <div id="pickerList"></div>
+        <div class="btn-row">
+          <button class="btn dark" onclick="autoAttach()">Auto</button>
+          <button class="btn dark" onclick="clearAll()">Clear All</button>
+          <button class="btn" onclick="closePicker()">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TOOLS PANEL ===== -->
+    <div id="toolsPanel" class="panel">
+      <div class="header"><span class="back" onclick="closeTools()">‹</span> Tool Network <span class="gear" onclick="closeTools()">✕</span></div>
+      <div class="content">
+        <div id="toolList"></div>
+        <div class="btn-row">
+          <button class="btn" onclick="toolAction('tare_all')">Tare All</button>
+          <button class="btn dark" onclick="toolAction('stop_all')">Stop All</button>
+          <button class="btn amber" id="loosenAllBtn" onclick="loosenAll()">Loosen All</button>
+        </div>
+        <div class="note">Tare with the bolts unloaded. Stop All switches every tool off and puts it back to idle; the next tightening run tares it again.
+          Loosen runs a tool in reverse; it stops by itself after 5 s, or press Stop All.</div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+  <div class="androidnav"><span>◀</span><span>●</span><span>■</span></div>
+</div></div></div>
+
+<script>
+let profiles = [];
+let selected = null;
+let tools = {};          // tool_id -> tool json
+let run = null;
+let viewingRun = false;
+let logLines = [];
+let assignment = [];     // TOOL_ID per bolt, or null
+let prevRun = null;      // earlier tool group
+let continueJob = false;
+let pickerBolt = -1;
+let units = "N";         // "N" or "lbf"
+let benchN = null;       // --bench-target N
+// Stress per unit system, and friction factor
+let choice = { metric: null, imperial: null, friction: "0.07" };
+
+// ---------- Units ----------
+const N_PER_LBF = 4.4482216, NM_PER_LBFFT = 1.3558179;
+try { units = localStorage.getItem("units") === "lbf" ? "lbf" : "N"; } catch (e) {}
+try { Object.assign(choice, JSON.parse(localStorage.getItem("boltChoice") || "{}")); } catch (e) {}
+
+function toggleUnits() {
+  units = units === "N" ? "lbf" : "N";
+  try { localStorage.setItem("units", units); } catch (e) {}
+  showUnits();
+  fillFilters();
+  renderFlangeList();
+  if (selected) {
+    $("socketNote").textContent = "Socket Size Detected: " + socketSize(selected);
+    if ($("screen-complete").classList.contains("on") && run) renderComplete();
+    else if ($("screen-tighten").classList.contains("on")) { renderSetup(); renderTighten(); }
+  }
+  renderTools();
+}
+
+function showUnits() {
+  document.querySelectorAll(".unit-btn").forEach(b => b.textContent = units === "N" ? "Metric" : "Imperial");
+}
+
+function force(n, digits = 0) {
+  if (units === "N") return Math.abs(n) >= 10000 ? `${(n / 1000).toFixed(1)} kN` : `${n.toFixed(digits)} N`;
+  const lbf = n / N_PER_LBF;
+  return Math.abs(lbf) >= 1000 ? `${Math.round(lbf).toLocaleString("en-US")} lbf` : `${lbf.toFixed(digits + 1)} lbf`;
+}
+
+function shortForce(n) {
+  const v = units === "N" ? n : n / N_PER_LBF;
+  return Math.abs(v) >= 10000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0);
+}
+
+function pressureClass(p) { return units === "N" ? p.pressure_class_metric : p.pressure_class_imperial; }
+
+function socketSize(p) {
+  const [a, b] = units === "N" ? [p.socket_size_metric, p.socket_size_imperial] : [p.socket_size_imperial, p.socket_size_metric];
+  return !a || a === "N/A" ? "N/A" : `${a} (${b})`;
+}
+
+// Stress options in the current units
+function stressOptions(p = selected) {
+  const opts = p.bolt_setup.options;
+  const mine = opts.filter(o => o.system === (units === "N" ? "metric" : "imperial"));
+  return mine.length ? mine : opts;
+}
+
+// Target, max and torque for the current choice
+function currentSetup(p = selected) {
+  const bs = p && p.bolt_setup;
+  if (!bs || bs.error) return null;
+  if (bs.custom) return { method: "custom", bolt: bs.bolt, target_n: bs.target_n, max_n: bs.max_n, label: "Fixed bench target" };
+  const opts = stressOptions(p);
+  if (!opts.length) return null;
+  const o = opts.find(x => x.stress_id === choice[x.system]) || opts[0];
+  const f = bs.friction_factors.includes(choice.friction) ? choice.friction : bs.friction_factors[0];
+  return {
+    method: "table", bolt: bs.bolt, stress_id: o.stress_id, friction: f, system: o.system,
+    scale: benchN ? benchN / o.tension_n : 1,
+    label: `${o.label}, f = ${f}`, target_n: o.tension_n, max_n: o.max_n,
+    tension_native: o.tension_native, tension_unit: o.tension_unit,
+    torque_nm: o.torque_nm[f], torque_native: o.torque_native[f], torque_unit: o.torque_unit,
+  };
+}
+
+// The run's setup, else the current choice
+function activeSetup() { return (viewingRun && run && run.setup) || currentSetup(); }
+function targetN() { const s = activeSetup(); return s ? s.target_n : 0; }
+
+// Load-cell N to full-size tension (bench scale)
+function full(n, s = activeSetup()) { return n == null ? n : n / ((s && s.scale) || 1); }
+
+// Torque scales with tension (T = K·F·d); marked ≈ unless at the table target
+function torque(n, s = activeSetup()) {
+  if (!s || s.method !== "table" || !s.target_n) return "";
+  const unit = units === "N" ? "N·m" : "lbf·ft";
+  const native = s.torque_unit === unit;
+  const atTarget = native ? s.torque_native : (units === "N" ? s.torque_nm : s.torque_nm / NM_PER_LBFFT);
+  const v = atTarget * n / s.target_n;
+  const exact = native && Math.abs(n - s.target_n) < 1e-6;
+  const txt = v >= 100 ? Math.round(v).toLocaleString("en-US") : v >= 10 ? v.toFixed(1) : v.toPrecision(2);
+  return `${exact ? "" : "≈ "}${txt} ${unit}`;
+}
+
+function forceAndTorque(n, digits = 0) {
+  const t = torque(n);
+  return t ? `${force(n, digits)} (${t})` : force(n, digits);
+}
+
+const $ = id => document.getElementById(id);
+
+function tickClock() {
+  const d = new Date();
+  $("clock").textContent = d.getHours().toString().padStart(2, "0") + ":" + d.getMinutes().toString().padStart(2, "0");
+}
+setInterval(tickClock, 15000); tickClock();
+
+// ---------- Data ----------
+async function init() {
+  const info = await (await fetch("/api/info")).json();
+  $("linkInfo").textContent = info.mode;
+  benchN = info.bench_target_n || null;
+  profiles = await (await fetch("/api/profiles")).json();
+  showUnits();
+  fillFilters();
+  renderFlangeList();
+  connectWs();
+}
+
+function fillFilters() {
+  const keepType = $("typeSel").value, keepClass = $("classSel").value;
+  const types = [...new Set(profiles.map(p => p.type))];
+  $("typeSel").innerHTML = `<option value="">All Types</option>` + types.map(t => `<option>${t}</option>`).join("");
+  const classes = new Map(profiles.map(p => [p.pressure_class_metric, pressureClass(p)]));
+  $("classSel").innerHTML = `<option value="">All</option>` +
+    [...classes].map(([k, label]) => `<option value="${k}">${label}</option>`).join("");
+  $("typeSel").value = keepType;
+  $("classSel").value = keepClass;
+}
+
+function filteredProfiles() {
+  const t = $("typeSel").value, c = $("classSel").value, q = $("search").value.trim().toLowerCase();
+  return profiles.filter(p =>
+    (!t || p.type === t) && (!c || p.pressure_class_metric === c) &&
+    (!q || [p.display_name, p.type, p.pressure_class_metric, p.pressure_class_imperial, p.bolt]
+      .some(v => (v || "").toLowerCase().includes(q))));
+}
+
+function renderFlangeList() {
+  const list = filteredProfiles();
+  $("listHead").textContent = ($("typeSel").value ? `Type ${$("typeSel").value}` : "Flanges") + ` (${list.length})`;
+  $("flangeList").innerHTML = list.length ? list.map(p => `
+    <div class="flange-row ${selected && selected.id === p.id ? "selected" : ""}" onclick="selectProfile('${p.id}')">
+      <span class="name">${iconThumb(p)}${p.display_name}<span class="meta">${p.bolt_count} × ${p.bolt_setup.custom ? "bench" : p.bolt}${p.bolt_setup.custom ? "" : " · " + pressureClass(p)}</span></span><span class="chev">›</span>
+    </div>`).join("") : `<div class="empty">No flanges match.</div>`;
+}
+
+function selectProfile(id) {
+  selected = profiles.find(p => p.id === id);
+  renderFlangeList();
+  $("startSelectionBtn").disabled = false;
+  $("socketNote").textContent = "Socket Size Detected: " + socketSize(selected);
+}
+
+// ---------- Bolt / tool assignment ----------
+function onlineToolIds() {
+  return Object.values(tools).filter(t => t.online).map(t => t.tool_id).sort();
+}
+
+function boltDone(i) {
+  return prevRun && prevRun.bolts[i] && prevRun.bolts[i].status === "reached";
+}
+
+function autoAttach() {
+  const n = selected.bolt_count;
+  if (!prevRun && selected.tools) {
+    assignment = Array.from({ length: n }, (_, i) => selected.tools[i] || null);
+  } else {
+    const free = onlineToolIds();
+    assignment = Array.from({ length: n }, (_, i) => (!boltDone(i) && free.length ? free.shift() : null));
+  }
+  renderTighten(); renderPicker();
+}
+
+function clearAll() {
+  assignment = assignment.map(() => null);
+  renderTighten(); renderPicker();
+}
+
+function openPicker(i) {
+  if (viewingRun) return;
+  pickerBolt = i;
+  $("picker").classList.add("on");
+  renderPicker();
+}
+function closePicker() { pickerBolt = -1; $("picker").classList.remove("on"); renderTighten(); }
+
+function pickTool(toolId) {
+  const i = pickerBolt;
+  const other = toolId ? assignment.indexOf(toolId) : -1;
+  if (other >= 0 && other !== i) assignment[other] = assignment[i];  // swap
+  assignment[i] = toolId;
+  closePicker();
+}
+
+function renderPicker() {
+  if (pickerBolt < 0) return;
+  const i = pickerBolt;
+  const done = boltDone(i) ? ` (done: ${force(full(prevRun.bolts[i].final_n, prevRun.setup))})` : "";
+  $("pickerTitle").textContent = `Bolt #${i + 1}${done}`;
+  const all = Object.values(tools).sort((a, b) => (b.online - a.online) || a.tool_id.localeCompare(b.tool_id));
+  const rows = [`<div class="pick ${assignment[i] ? "" : "on"}" onclick="pickTool(null)"><span>No tool</span><span class="sub">bolt left for later</span></div>`];
+  all.forEach(t => {
+    const on = assignment[i] === t.tool_id;
+    const elsewhere = assignment.indexOf(t.tool_id);
+    const sub = !t.online ? "offline" : elsewhere >= 0 && !on ? `on bolt #${elsewhere + 1}` : t.state;
+    rows.push(`<div class="pick ${on ? "on" : ""} ${t.online ? "" : "off"}" onclick="pickTool('${t.tool_id}')">
+      <span>${t.tool_id.replace("TOOL_", "Tool ")}</span><span class="sub">${sub}</span></div>`);
+  });
+  $("pickerList").innerHTML = rows.join("");
+}
+
+// ---------- Screens ----------
+function showScreen(name) {
+  ["select", "tighten", "complete"].forEach(s => $("screen-" + s).classList.toggle("on", s === name));
+}
+
+function runActive() { return run && ["starting", "taring", "tightening"].includes(run.phase); }
+
+function goToTighten(nextGroup = false) {
+  if (!selected) return;
+  continueJob = nextGroup && run && run.profile_id === selected.id;
+  prevRun = continueJob ? run : null;
+  viewingRun = false;
+  autoAttach();
+  $("tightenFlangeName").textContent = selected.display_name + (continueJob ? ` · Group ${run.group + 1}` : " Flange Selected");
+  renderSetup();
+  $("infoCount").textContent = selected.bolt_count;
+  $("infoBlock").style.display = "block";
+  $("boltBars").style.display = "none";
+  $("liveLine").textContent = "";
+  $("callout").style.display = "none";
+  $("phaseLine").textContent = "";
+  $("startTighteningBtn").style.display = "block";
+  $("startTighteningBtn").disabled = runActive();
+  renderTighten();
+  showScreen("tighten");
+}
+
+// Bolt stress and friction choices for the selected flange's stud.
+function renderSetup() {
+  const bs = selected.bolt_setup;
+  const table = bs && !bs.custom && !bs.error;
+  $("setupBlock").style.display = table ? "block" : "none";
+  if (table) {
+    const s = currentSetup();
+    $("stressSel").innerHTML = stressOptions().map(o =>
+      `<option value="${o.stress_id}" ${o.stress_id === s.stress_id ? "selected" : ""}>${o.label} (${o.note.replace("Studs with ", "")})</option>`).join("");
+    $("frictionSel").innerHTML = bs.friction_factors.map(f =>
+      `<option ${f === s.friction ? "selected" : ""}>${f}</option>`).join("");
+  }
+  fillInfo();
+}
+
+function setupChanged() {
+  const o = selected.bolt_setup.options.find(x => x.stress_id === $("stressSel").value);
+  if (o) choice[o.system] = o.stress_id;
+  choice.friction = $("frictionSel").value;
+  try { localStorage.setItem("boltChoice", JSON.stringify(choice)); } catch (e) {}
+  fillInfo();
+  renderTighten();
+}
+
+// Stud diameter and thread in the current units, with the other in brackets.
+function studSize(bs) {
+  const imp = `${bs.diameter_in} in, ${bs.tpi} TPI`;
+  const met = `${bs.diameter_mm} mm, ${bs.pitch_mm} mm pitch`;
+  return units === "N" ? `${met} / ${imp}` : `${imp} / ${met}`;
+}
+
+function fillInfo() {
+  const bs = selected.bolt_setup, s = activeSetup();
+  $("infoStud").textContent = bs.error ? bs.error
+    : bs.custom ? "Bench rig (fixed target)"
+    : `${bs.bolt} (${studSize(bs)})` + (bs.capped ? " · stress capped by H.3.3" : "");
+  $("infoTarget").textContent = s ? force(s.target_n, 1) : "—";
+  $("infoTorque").textContent = s ? (torque(s.target_n, s) || "—") : "—";
+  $("infoMax").textContent = s ? force(s.max_n, 1) : "—";
+  $("infoMaxTorque").textContent = s ? (torque(s.max_n, s).replace("≈ ", "") || "—") : "—";
+  const scaled = s && s.scale && s.scale !== 1;
+  $("infoBench").style.display = scaled ? "block" : "none";
+  if (scaled) $("infoBench").textContent =
+    `Bench scale: tools stop at ${(s.target_n * s.scale).toFixed(1)} N on the load cell; readings are shown scaled up.`;
+}
+
+function backFromTighten() {
+  if (runActive()) return;
+  showScreen("select");
+}
+
+// ---------- Actions ----------
+async function startTightening() {
+  const s = currentSetup();
+  const res = await fetch(`/api/start/${selected.id}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ assignment, continue_job: continueJob, stress_id: s && s.stress_id, friction: s && s.friction }),
+  });
+  const body = await res.json();
+  if (!res.ok) { $("phaseLine").textContent = body.error; return; }
+  run = body;
+  viewingRun = true;
+  renderTighten();
+}
+
+async function cancelTightening() {
+  if (runActive()) {
+    await fetch("/api/cancel", { method: "POST" });
+    return;
+  }
+  showScreen("select");
+}
+
+function toolAction(a) { return fetch(`/api/tools/${a}`, { method: "POST" }); }
+
+// ---------- Loosen ----------
+const LOOSEN_S = 5;
+const loosenStarted = {};   // tool_id -> start time
+function runActive() { return !!(run && ["starting", "taring", "tightening"].includes(run.phase)); }
+async function showError(res) {
+  if (res.ok) return;
+  const body = await res.json().catch(() => ({}));
+  alert(body.error || "Request failed.");
+}
+async function loosenTool(id) {
+  if (!confirm(`Loosen ${id.replace("TOOL_", "Tool ")}? It runs in reverse for ${LOOSEN_S} s, or until you press Stop All.`)) return;
+  showError(await fetch(`/api/tool/${encodeURIComponent(id)}/loosen`, { method: "POST" }));
+}
+async function loosenAll() {
+  if (!confirm(`Loosen with every tool? They all run in reverse for ${LOOSEN_S} s, or until you press Stop All.`)) return;
+  showError(await toolAction("loosen_all"));
+}
+function loosenLabel(t) {
+  if (t.state !== "LOOSENING") { delete loosenStarted[t.tool_id]; return t.state; }
+  loosenStarted[t.tool_id] = loosenStarted[t.tool_id] || Date.now();
+  const left = Math.max(0, LOOSEN_S - Math.floor((Date.now() - loosenStarted[t.tool_id]) / 1000));
+  return `LOOSENING ${left}s`;
+}
+
+function saveReport() {
+  if (run && run.report_file) window.location = `/api/reports/${encodeURIComponent(run.report_file)}`;
+}
+
+function openTools() { $("toolsPanel").classList.add("on"); renderTools(); }
+function closeTools() { $("toolsPanel").classList.remove("on"); }
+
+// ---------- Bolt state helpers ----------
+function boltState(i) {
+  const b = viewingRun && run ? run.bolts[i] : null;
+  const toolId = b ? b.tool_id : assignment[i];
+  const t = toolId ? tools[toolId] : null;
+  let status;
+  if (b) status = b.status;
+  else if (toolId) status = t && t.online ? "idle" : "offline";
+  else status = boltDone(i) ? "reached" : "no_tool";
+  if (status === "pending" && run && run.phase === "taring") status = "taring";
+  const measuring = t && ["MONITORING", "TARGET_REACHED"].includes(t.state);
+  let live = t && !(b && b.carried) ? Math.max(t.avg_n, measuring ? t.min_n : 0) : 0;
+  // Re-tightening: show the last reading meanwhile
+  if (b && b.retightens && live <= 0 && b.final_n != null) live = b.final_n;
+  let value = full(b && b.final_n != null && status !== "tightening" ? b.final_n : live);
+  if (!b && !toolId && boltDone(i)) value = full(prevRun.bolts[i].final_n, prevRun.setup);
+  return { toolId, tool: t, status, value };
+}
+
+const COLORS = {
+  idle: "var(--slate)", taring: "var(--slate-light)", pending: "var(--slate)",
+  tightening: "var(--blue)", reached: "var(--green)", insufficient: "var(--amber)",
+  stopped: "var(--red)", tare_failed: "var(--red)", over_max: "var(--red)", no_tool: "#b5bcc3", offline: "#c98a2e",
+};
+
+// ---------- Flange icons ----------
+// Chosen by "icon", else "type", else "generic"
+const STROKE = "#59636d", STROKE_LIGHT = "#9aa3ac", BODY = "#f7f8f9";
+
+function ringPositions(n, c, R) {
+  return Array.from({ length: n }, (_, i) => {
+    const a = (-90 + (360 / n) * i) * Math.PI / 180;
+    return { x: c + R * Math.cos(a), y: c + R * Math.sin(a) };
+  });
+}
+
+const FLANGE_ICONS = {
+  // API 6BX
+  "6BX": {
+    label: "API 6BX",
+    positions: ringPositions,
+    body: (c, R) => `
+      <rect x="${c - R - 36}" y="${c - 14}" width="14" height="28" rx="3" fill="#dfe3e7" stroke="#7d8790"/>
+      <rect x="${c + R + 22}" y="${c - 14}" width="14" height="28" rx="3" fill="#dfe3e7" stroke="#7d8790"/>
+      <circle cx="${c}" cy="${c}" r="${R + 24}" fill="${BODY}" stroke="${STROKE}" stroke-width="2"/>
+      <circle cx="${c}" cy="${c}" r="${R - 24}" fill="none" stroke="#7d8790" stroke-width="1.5"/>
+      <circle cx="${c}" cy="${c}" r="${R - 34}" fill="none" stroke="${STROKE_LIGHT}" stroke-width="1"/>
+      <circle cx="${c}" cy="${c}" r="${R - 54}" fill="none" stroke="#7d8790" stroke-width="1.5"/>
+      <line x1="${c - 40}" y1="${c}" x2="${c + 40}" y2="${c}" stroke="${STROKE_LIGHT}"/>
+      <line x1="${c}" y1="${c - 40}" x2="${c}" y2="${c + 40}" stroke="${STROKE_LIGHT}"/>`,
+  },
+  // API 6B
+  "6B": {
+    label: "API 6B",
+    positions: ringPositions,
+    body: (c, R) => `
+      <circle cx="${c}" cy="${c}" r="${R + 24}" fill="${BODY}" stroke="${STROKE}" stroke-width="2"/>
+      <circle cx="${c}" cy="${c}" r="${R - 22}" fill="#eef0f2" stroke="#7d8790" stroke-width="1.5"/>
+      <circle cx="${c}" cy="${c}" r="${R - 40}" fill="none" stroke="${STROKE}" stroke-width="3"/>
+      <circle cx="${c}" cy="${c}" r="${R - 62}" fill="#dfe3e7" stroke="#7d8790" stroke-width="1.5"/>`,
+  },
+  // Bench rig
+  "bench": {
+    label: "Bench rig",
+    height: n => (n > 8 ? 150 : 100),
+    positions: (n, c, R) => {
+      const rows = n > 8 ? 2 : 1, perRow = Math.ceil(n / rows);
+      const span = Math.min(2 * R, (perRow - 1) * 44);
+      return Array.from({ length: n }, (_, i) => {
+        const row = Math.floor(i / perRow), col = i % perRow;
+        const inRow = row === rows - 1 ? n - perRow * (rows - 1) : perRow;
+        const step = inRow > 1 ? span / (inRow - 1) : 0;
+        return { x: c - (step * (inRow - 1)) / 2 + col * step, y: c + (rows === 1 ? 0 : (row ? 34 : -34)) };
+      });
+    },
+    body: (c, R, n) => {
+      const h = n > 8 ? 120 : 70;
+      return `
+      <rect x="${c - R - 24}" y="${c - h / 2}" width="${2 * R + 48}" height="${h}" rx="8" fill="${BODY}" stroke="${STROKE}" stroke-width="2"/>
+      <line x1="${c - R - 10}" y1="${c + h / 2 - 10}" x2="${c + R + 10}" y2="${c + h / 2 - 10}" stroke="${STROKE_LIGHT}"/>
+      <circle cx="${c - R - 12}" cy="${c - h / 2 + 12}" r="4" fill="none" stroke="${STROKE_LIGHT}"/>
+      <circle cx="${c + R + 12}" cy="${c - h / 2 + 12}" r="4" fill="none" stroke="${STROKE_LIGHT}"/>`;
+    },
+  },
+  // Generic
+  "generic": {
+    label: "Generic flange",
+    positions: ringPositions,
+    body: (c, R) => `
+      <circle cx="${c}" cy="${c}" r="${R + 24}" fill="${BODY}" stroke="${STROKE}" stroke-width="2"/>
+      <circle cx="${c}" cy="${c}" r="${R - 40}" fill="#dfe3e7" stroke="#7d8790" stroke-width="1.5"/>`,
+  },
+};
+
+function flangeIcon(p) {
+  return FLANGE_ICONS[p.icon] || FLANGE_ICONS[p.type] || FLANGE_ICONS.generic;
+}
+
+// Bolt circles shrink to avoid overlap
+function boltRadius(icon, n, R) {
+  if (n < 2) return 14;
+  const pts = icon.positions(n, 0, R);
+  const gap = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+  return Math.max(6, Math.min(14, gap / 2 - 3));
+}
+
+function renderDiagram(elId) {
+  const n = selected.bolt_count;
+  const size = 270, c = size / 2, R = 104;
+  const icon = flangeIcon(selected);
+  const r = boltRadius(icon, n, R);
+  const font = Math.max(8, Math.round(r * 0.93));
+  let bolts = "";
+  icon.positions(n, c, R).forEach(({ x, y }, i) => {
+    const s = boltState(i);
+    const ring = s.status === "tightening" ? `<circle cx="${x}" cy="${y}" r="${r + 3.5}" fill="none" stroke="var(--amber)" stroke-width="3"/>` : "";
+    const label = s.status === "reached" ? "✓" : s.status === "over_max" ? "!" : (i + 1);
+    const pickable = elId === "diagramWrap" && !viewingRun;
+    const dash = s.status === "no_tool" ? ` stroke-dasharray="3 2" stroke="#7d8790"` : ` stroke="#fff"`;
+    bolts += `<g ${pickable ? `class="bolt-hit" onclick="openPicker(${i})"` : ""}><title>Bolt ${i + 1}: ${s.toolId || "no tool"}</title>${ring}
+      <circle cx="${x}" cy="${y}" r="${r}" fill="${COLORS[s.status]}"${dash} stroke-width="2"/>
+      <text x="${x}" y="${y + font * 0.36}" text-anchor="middle" font-size="${s.status === "reached" ? font + 2 : font}" font-weight="600" fill="#fff">${label}</text></g>`;
+  });
+  const h = icon.height ? icon.height(n) : size;
+  $(elId).innerHTML = `
+    <svg width="${size}" height="${h}" viewBox="0 ${(size - h) / 2} ${size} ${h}" aria-label="${icon.label}, ${n} bolts">
+      ${icon.body(c, R, n)}
+      ${bolts}
+    </svg>`;
+}
+
+// Flange list preview
+function iconThumb(p) {
+  const size = 270, c = size / 2, R = 104, n = p.bolt_count;
+  const icon = flangeIcon(p);
+  const r = boltRadius(icon, n, R);
+  const dots = icon.positions(n, c, R).map(({ x, y }) => `<circle cx="${x}" cy="${y}" r="${r}" fill="var(--slate)"/>`).join("");
+  return `<svg class="thumb" viewBox="0 0 ${size} ${size}" aria-hidden="true">${icon.body(c, R, n)}${dots}</svg>`;
+}
+
+function renderBars() {
+  const n = selected.bolt_count;
+  let html = "";
+  for (let i = 0; i < n; i++) {
+    const s = boltState(i);
+    const pct = Math.max(0, Math.min(100, (s.value / targetN()) * 100));
+    let color = "var(--amber)";
+    if (s.status === "reached") color = "var(--green)";
+    else if (["insufficient", "over_max", "stopped", "tare_failed"].includes(s.status)) color = "var(--red)";
+    else if (s.status === "no_tool") color = "#b5bcc3";
+    html += `<div class="bolt-bar-col" title="${s.toolId}">
+      <div class="bolt-bar-track"><div class="bolt-bar-fill" style="height:${pct}%;background:linear-gradient(90deg,${color},#fff8 50%,${color})"></div></div>
+      <div class="bolt-bar-label">${i + 1}</div><div class="bolt-bar-value">${shortForce(s.value)}</div></div>`;
+  }
+  $("boltBars").innerHTML = html;
+  // Average live tension and torque
+  const live = [];
+  for (let i = 0; i < n; i++) { const s = boltState(i); if (s.status === "tightening") live.push(s.value); }
+  $("liveLine").textContent = live.length
+    ? `Live${live.length > 1 ? ` (average of ${live.length})` : ""}: ${forceAndTorque(live.reduce((a, v) => a + v, 0) / live.length)}`
+    : "";
+  const width = $("boltBars").clientWidth || 360;
+  $("boltBars").style.setProperty("--col", Math.min(27, Math.floor((width + 3) / n) - 3) + "px");
+}
+
+function firstProblem() {
+  if (!run) return null;
+  const idx = run.bolts.findIndex(b => ["insufficient", "over_max", "stopped", "tare_failed"].includes(b.status));
+  if (idx < 0) return null;
+  return { i: idx, b: run.bolts[idx] };
+}
+
+function fillCallout(prefix, problem) {
+  const box = $(prefix);
+  if (!problem) { box.style.display = "none"; return; }
+  const { i, b } = problem;
+  const label = { insufficient: "Insufficient Preload", over_max: "Over-tightened", stopped: "Stopped", tare_failed: "Tare Failed" }[b.status];
+  $(prefix + "Title").textContent = `Bolt #${i + 1}: ${label}`;
+  $(prefix + "Current").textContent = b.final_n != null ? `Current Preload: ${forceAndTorque(full(b.final_n))}` : b.note;
+  $(prefix + "Target").textContent = b.status === "over_max"
+    ? `Max Preload: ${forceAndTorque(activeSetup().max_n)}`
+    : `Target Preload: ${forceAndTorque(targetN())}`;
+  box.style.display = "block";
+}
+
+function renderTighten() {
+  if (!selected) return;
+  renderDiagram("diagramWrap");
+  const fitted = assignment.filter(Boolean);
+  const offline = fitted.filter(id => !(tools[id] && tools[id].online)).length;
+  $("infoTools").textContent = `${fitted.length} of ${selected.bolt_count}` + (offline ? ` (${offline} offline)` : "");
+
+  if (!viewingRun || !run) {
+    const doneCount = prevRun ? prevRun.bolts.filter(b => b.status === "reached").length : 0;
+    $("phaseLine").innerHTML = `<span class="hint">Tap a bolt to attach or remove a tool${doneCount ? ` · ${doneCount} bolts already done` : ""}</span>`;
+    $("startTighteningBtn").disabled = runActive() || fitted.length === offline || !currentSetup();
+    return;
+  }
+  const active = runActive();
+  $("tightenFlangeName").textContent = selected.display_name;
+  $("infoBlock").style.display = "none";
+  $("boltBars").style.display = "flex";
+  $("startTighteningBtn").style.display = "none";
+  renderBars();
+  fillCallout("callout", firstProblem());
+
+  const phases = {
+    starting: "Taring load cells…",
+    taring: "Taring load cells…" + (run.message ? ` · ${run.message}` : ""),
+    tightening: `Tightening all bolts to ${forceAndTorque(targetN())}` + (run.message ? ` · ${run.message}` : ""),
+  };
+  $("phaseLine").textContent = active ? phases[run.phase] : run.message;
+  if (!active && ["complete", "aborted", "cancelled"].includes(run.phase) && $("screen-tighten").classList.contains("on")) {
+    renderComplete();
+  }
+}
+
+function renderComplete() {
+  const ok = run.bolts.filter(b => b.status === "reached").length;
+  const all = ok === run.bolts.length;
+  $("completeTitle").textContent = run.phase === "complete" ? "Tightening Completed" : "Tightening Stopped";
+  $("completeSummary").textContent = all
+    ? `All Bolts Tightened: ${forceAndTorque(targetN())}`
+    : run.phase === "complete" ? run.message
+    : `${ok} of ${run.bolts.length} Bolts at ${force(targetN())}. ${run.message}`;
+  $("nextGroupBtn").style.display = all ? "none" : "block";
+  renderDiagram("diagramWrapComplete");
+  fillCallout("calloutComplete", firstProblem());
+  $("savedFlag").innerHTML = run.report_file
+    ? `<span class="tick">✓</span> Data Saved <span style="font-size:12px;color:var(--ink-dim)">(${run.report_file})</span>`
+    : "Report not saved";
+  $("boltTable").innerHTML = run.bolts.map((b, i) => {
+    const bad = b.status !== "reached";
+    const v = b.final_n != null ? force(full(b.final_n)) : "—";
+    const again = b.retightens ? ` <span class="sub" title="Re-tightened ${b.retightens}× after loosening">↻${b.retightens}</span>` : "";
+    return `<div class="${bad ? "bad" : ""}"><span>Bolt #${i + 1}:${again}</span><span>${v}</span></div>`;
+  }).join("");
+  showScreen("complete");
+}
+
+function renderTools() {
+  const list = Object.values(tools).sort((a, b) => a.tool_id.localeCompare(b.tool_id));
+  $("toolsOnline").textContent = `${list.filter(t => t.online).length} tools`;
+  if (!$("toolsPanel").classList.contains("on")) return;
+  $("toolList").innerHTML = list.length ? list.map(t => `
+    <div class="tool-row">
+      <span><span class="dot" style="background:${t.online ? "var(--green)" : "#b5bcc3"}"></span>${t.tool_id.replace("TOOL_", "Tool ")}</span>
+      <span class="st ${t.state === "LOOSENING" ? "loosening" : ""}">${t.online ? loosenLabel(t) : "OFFLINE"}</span>
+      <span class="n">${force(t.avg_n, 1)}</span>
+      <span class="relay ${t.relay_on ? "on" : ""}">${t.relay_on ? "ON" : "off"}</span>
+      <button class="loosen-btn" onclick="loosenTool('${t.tool_id}')" ${t.online && !runActive() ? "" : "disabled"}
+        title="Run in reverse for ${LOOSEN_S} s">Loosen</button>
+    </div>`).join("") : `<div class="empty">No tools discovered yet.</div>`;
+  $("loosenAllBtn").disabled = runActive();
+  $("log").textContent = logLines.slice(-15).join("\n");
+}
+
+// ---------- WebSocket ----------
+let renderPending = false;
+function scheduleRender() {
+  if (renderPending) return;
+  renderPending = true;
+  requestAnimationFrame(() => {
+    renderPending = false;
+    renderTools();
+    if ($("screen-tighten").classList.contains("on")) renderTighten();
+  });
+}
+
+function connectWs() {
+  const ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => $("linkInfo").classList.remove("off");
+  ws.onmessage = ev => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === "tool") tools[msg.data.tool_id] = msg.data;
+    else if (msg.type === "run") {
+      run = msg.data;
+      if (selected && run.profile_id === selected.id && runActive()) {
+        viewingRun = true;
+      } else if (!selected && runActive()) {
+        // Opened mid-run: show it
+        selected = profiles.find(p => p.id === run.profile_id);
+        if (selected) { goToTighten(); viewingRun = true; }
+      }
+    } else if (msg.type === "log") logLines.push(msg.data);
+    scheduleRender();
+  };
+  ws.onclose = () => { $("linkInfo").classList.add("off"); setTimeout(connectWs, 1000); };
+}
+
+init();
+</script>
+</body>
+</html>

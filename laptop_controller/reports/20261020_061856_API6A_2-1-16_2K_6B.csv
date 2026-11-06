@@ -1,0 +1,18 @@
+flange,"2-1/16"" 2K 6B"
+started,2026-10-20T06:18:42
+result,complete,All bolts reached target.
+stud,5/8-11,bolt_count,8
+setting,"360 MPa, f = 0.13"
+target_kN,52.000,target_lbf,11690
+max_kN,54.600,max_lbf,12275
+target_tension,52,kN,torque,155,N¡Pm
+
+bolt,tool_id,group,status,final_kN,final_lbf,load_cell_N,note
+1,TOOL_01,1,reached,52.069,11705,52068.56,
+2,TOOL_02,1,reached,52.062,11704,52062.00,
+3,TOOL_03,1,reached,52.053,11702,52052.98,
+4,TOOL_04,1,reached,52.161,11726,52160.81,
+5,TOOL_05,1,reached,52.132,11720,52131.70,
+6,TOOL_06,1,reached,52.083,11709,52082.91,
+7,TOOL_07,1,reached,52.004,11691,52004.19,
+8,TOOL_08,1,reached,52.144,11722,52144.00,
