@@ -782,8 +782,8 @@
         }
       }
     },
-    "BENCH": {
-      "description": "Bench test rig with the proof-of-concept load cell. Fixed target, not from API 6A.",
+    "FIXED_50N": {
+      "description": "Fixed 50 N target on the proof-of-concept load cell, not from API 6A.",
       "custom": {
         "target_n": 50,
         "max_n": 62.5

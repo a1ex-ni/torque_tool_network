@@ -1,29 +1,29 @@
 {
-  "_note": "Flange geometry from API 6A Tables D.1-D.7 (metric) and E.1-E.7 (imperial). Required per flange: id, display_name, bolt_count, bolt (a stud size from bolt_profiles.json, e.g. \"1-1/8-8\"). Optional: type, icon (6BX, 6B, bench or generic; default follows type), pressure_class_metric, pressure_class_imperial, socket_size_metric, socket_size_imperial, source, tools (TOOL_IDs for bolt 1, 2, 3...). Socket size is the regular (finished) hex nut width across flats for the stud, 1.5 D (ASME B18.2.2 hex nut table), e.g. 7/8-9 -> 1-5/16 in. Heavy hex nuts (1.5 D + 1/8 in, e.g. 7/8-9 -> 1-7/16 in) are what API 6A specifies for flange studs, so use the next socket up if the rig uses heavy hex nuts. The metric value is that size converted, not a standard metric socket. Targets are not set here: they come from bolt_profiles.json for the chosen bolt stress and friction factor.",
+  "_note": "Flange geometry from API 6A Tables D.1-D.7 (metric) and E.1-E.7 (imperial). Required per flange: id, display_name, bolt_count, bolt (a stud size from bolt_profiles.json, e.g. \"1-1/8-8\"). Optional: type, icon (6BX, 6B, fixed or generic; default follows type), pressure_class_metric, pressure_class_imperial, socket_size_metric, socket_size_imperial, source, tools (TOOL_IDs for bolt 1, 2, 3...). Socket size is the regular (finished) hex nut width across flats for the stud, 1.5 D (ASME B18.2.2 hex nut table), e.g. 7/8-9 -> 1-5/16 in. Heavy hex nuts (1.5 D + 1/8 in, e.g. 7/8-9 -> 1-7/16 in) are what API 6A specifies for flange studs, so use the next socket up if the rig uses heavy hex nuts. The metric value is that size converted, not a standard metric socket. Targets are not set here: they come from bolt_profiles.json for the chosen bolt stress and friction factor.",
   "profiles": [
     {
-      "id": "BENCH_1_TOOL",
-      "display_name": "Bench test (1 tool)",
-      "type": "Bench",
-      "icon": "bench",
+      "id": "FIXED_TARGET_1_TOOL",
+      "display_name": "Fixed target test (1 tool)",
+      "type": "Fixed target",
+      "icon": "fixed",
       "pressure_class_metric": "N/A",
       "pressure_class_imperial": "N/A",
       "socket_size_metric": "N/A",
       "socket_size_imperial": "N/A",
       "bolt_count": 1,
-      "bolt": "BENCH"
+      "bolt": "FIXED_50N"
     },
     {
-      "id": "BENCH_2_TOOLS",
-      "display_name": "Bench test (2 tools)",
-      "type": "Bench",
-      "icon": "bench",
+      "id": "FIXED_TARGET_2_TOOLS",
+      "display_name": "Fixed target test (2 tools)",
+      "type": "Fixed target",
+      "icon": "fixed",
       "pressure_class_metric": "N/A",
       "pressure_class_imperial": "N/A",
       "socket_size_metric": "N/A",
       "socket_size_imperial": "N/A",
       "bolt_count": 2,
-      "bolt": "BENCH"
+      "bolt": "FIXED_50N"
     },
     {
       "id": "API6A_2-1-16_2K_6B",

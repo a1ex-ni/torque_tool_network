@@ -6,7 +6,7 @@ press Ctrl+C to stop. The dashboard opens in your browser at http://localhost:80
   2_simulation_with_stalls    no hardware, 12 tools, some stall or over-tighten
   3_simulation_loosening      no hardware, 12 tools, bolts loosen and get re-tightened
   4_real_tools_bench_scale    real tools, any flange scaled to BENCH_TARGET N
-  5_real_tools_bench_rig      real tools, Bench Rig flange at 50 N, no scaling
+  5_real_tools_fixed_target   real tools, Fixed target test flange at 50 N, no scaling
   6_text_controller           real tools, typed commands instead of the dashboard
   7_text_controller_imperial  as 6, readings in lbf
 

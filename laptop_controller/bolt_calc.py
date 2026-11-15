@@ -77,7 +77,7 @@ def resolve(flange: dict, bp: dict, stress_id: Optional[str], friction: Optional
         raise ValueError(setup["error"])
     if setup["custom"]:
         return {"bolt": setup["bolt"], "method": "custom", "target_n": setup["target_n"],
-                "max_n": setup["max_n"], "label": "Fixed bench target"}
+                "max_n": setup["max_n"], "label": "Fixed target"}
 
     opt = next((o for o in setup["options"] if o["stress_id"] == stress_id), None)
     if opt is None:

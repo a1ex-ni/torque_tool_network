@@ -464,7 +464,7 @@ function stressOptions(p = selected) {
 function currentSetup(p = selected) {
   const bs = p && p.bolt_setup;
   if (!bs || bs.error) return null;
-  if (bs.custom) return { method: "custom", bolt: bs.bolt, target_n: bs.target_n, max_n: bs.max_n, label: "Fixed bench target" };
+  if (bs.custom) return { method: "custom", bolt: bs.bolt, target_n: bs.target_n, max_n: bs.max_n, label: "Fixed target" };
   const opts = stressOptions(p);
   if (!opts.length) return null;
   const o = opts.find(x => x.stress_id === choice[x.system]) || opts[0];
@@ -546,7 +546,7 @@ function renderFlangeList() {
   $("listHead").textContent = ($("typeSel").value ? `Type ${$("typeSel").value}` : "Flanges") + ` (${list.length})`;
   $("flangeList").innerHTML = list.length ? list.map(p => `
     <div class="flange-row ${selected && selected.id === p.id ? "selected" : ""}" onclick="selectProfile('${p.id}')">
-      <span class="name">${iconThumb(p)}${p.display_name}<span class="meta">${p.bolt_count} × ${p.bolt_setup.custom ? "bench" : p.bolt}${p.bolt_setup.custom ? "" : " · " + pressureClass(p)}</span></span><span class="chev">›</span>
+      <span class="name">${iconThumb(p)}${p.display_name}<span class="meta">${p.bolt_count} × ${p.bolt_setup.custom ? "fixed target" : p.bolt}${p.bolt_setup.custom ? "" : " · " + pressureClass(p)}</span></span><span class="chev">›</span>
     </div>`).join("") : `<div class="empty">No flanges match.</div>`;
 }
 
@@ -676,7 +676,7 @@ function studSize(bs) {
 function fillInfo() {
   const bs = selected.bolt_setup, s = activeSetup();
   $("infoStud").textContent = bs.error ? bs.error
-    : bs.custom ? "Bench rig (fixed target)"
+    : bs.custom ? "Fixed target (not from API 6A)"
     : `${bs.bolt} (${studSize(bs)})` + (bs.capped ? " · stress capped by H.3.3" : "");
   $("infoTarget").textContent = s ? force(s.target_n, 1) : "—";
   $("infoTorque").textContent = s ? (torque(s.target_n, s) || "—") : "—";
@@ -810,9 +810,9 @@ const FLANGE_ICONS = {
       <circle cx="${c}" cy="${c}" r="${R - 40}" fill="none" stroke="${STROKE}" stroke-width="3"/>
       <circle cx="${c}" cy="${c}" r="${R - 62}" fill="#dfe3e7" stroke="#7d8790" stroke-width="1.5"/>`,
   },
-  // Bench rig
-  "bench": {
-    label: "Bench rig",
+  // Fixed target test
+  "fixed": {
+    label: "Fixed target test",
     height: n => (n > 8 ? 150 : 100),
     positions: (n, c, R) => {
       const rows = n > 8 ? 2 : 1, perRow = Math.ceil(n / rows);

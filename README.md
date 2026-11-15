@@ -20,6 +20,7 @@ a dropped radio link cannot leave a wrench running.
 | Path | What it is |
 |------|------------|
 | `target_monitor_wifi/target_monitor_wifi.ino` | Tool firmware (HX711 + 2 drive relays) |
+| `servo_placeholder_tool/servo_placeholder_tool.ino` | Placeholder tool `TOOL_02` (servo only, no load cell) |
 | `tool_network_controller/tool_network_controller.ino` | Gateway firmware (ESP-NOW to USB Serial) |
 | `laptop_controller/dashboard.py` | Web dashboard and tightening sequence |
 | `laptop_controller/laptop_controller.py` | Serial API (`ToolNetworkController`) and text CLI |
@@ -27,7 +28,7 @@ a dropped radio link cannot leave a wrench running.
 | `laptop_controller/simulate_ideal.py` | Simulation where every bolt reaches target |
 | `laptop_controller/bolt_calc.py` | Target tension and torque lookup (API 6A Tables H.1 / H.2) |
 | `laptop_controller/xlsx_report.py` | Excel report writer (standard library only) |
-| `laptop_controller/flange_profiles.json` | 71 API 6A flanges (6B and 6BX) plus 2 bench rigs |
+| `laptop_controller/flange_profiles.json` | 71 API 6A flanges (6B and 6BX) plus 2 fixed target tests |
 | `laptop_controller/bolt_profiles.json` | Stud ratings, stress options, friction factors |
 | `laptop_controller/static/index.html` | Tablet-style UI |
 | `laptop_controller/run_scenarios/` | Double-click `.bat` launchers for Windows |
@@ -70,7 +71,7 @@ at 30 s in simulation), `--bench-target N`, `--n-per-count`, `--baud`,
 tightening one bolt loosens the others, e.g. 0.3).
 
 `run_scenarios/` wraps these as `.bat` files (setup, three simulations, bench
-scale, bench rig, text CLI metric and imperial). Set the COM port and bench
+scale, fixed target test, text CLI metric and imperial). Set the COM port and bench
 target once in `settings.bat`.
 
 ## Using the dashboard
@@ -128,7 +129,7 @@ and H.2 (40 / 52.5 / 47.5 ksi) per stud, with friction factors 0.07 and 0.13.
 `bolt_calc.py` reads the target tension and make-up torque from the table for
 the chosen stress and friction factor. The maximum is `max_over_target_pct`
 (25 %) above the target. `flange_overrides` caps four H.3.3 flanges at
-275 MPa / 40 ksi. The bench rigs use the `BENCH` stud with a fixed 50 N
+275 MPa / 40 ksi. The fixed target tests use the `FIXED_50N` stud with a fixed 50 N
 target and 62.5 N maximum. Table values were typed in by hand: check them
 against the standard before real use.
 
@@ -170,6 +171,28 @@ States: `IDLE`, `TARE_FAILED`, `READY`, `MONITORING`, `TARGET_REACHED`,
 `STOP`, `RESET`, `TARGET,<N>`, `LOOSEN`, `STATUS`, `RAW` (5 s of raw HX711
 readings and the sample rate) and `HELP`. Commands go through the same code as
 radio commands.
+
+## Placeholder tool (TOOL_02)
+
+`servo_placeholder_tool.ino` is `target_monitor_wifi.ino` with the relays
+replaced by an SM-S2309S servo on GPIO 4 and the load cell code commented out
+(marked "Unused"). It shows the controller driving two tools at once while only
+`TOOL_01` is a finished module.
+
+- **TARE:** no load cell, so it goes straight to `READY`.
+- **Load:** simulated with the ideal-run model from `simulated_controller.py`
+  (no stalls), sped up: every 250 ms the load closes 18 % of the gap to
+  1.02 × target, at most 7.5 % of the target per step, with the same small noise. Its numbers in
+  a report are not measurements.
+- **TARGET:** sweeps the servo between 5° and 175° straight away while the
+  simulated load ramps. It parks at 90° and reports `TARGET_REACHED` once the
+  reported value reaches the target, the moment the dashboard shows the bolt
+  complete (about 6 s of sweeping). Like the simulator, a bolt that dips below
+  target gets re-tightened by the dashboard.
+- **LOOSEN:** sweeps for 5 s while the simulated load drops 8 % per step, then DONE. **STOP / RESET:** servo parked, as on
+  `TOOL_01`.
+- It appears in the dashboard like any tool and is auto-assigned to the bolt
+  after `TOOL_01`. Power the servo from 5 V, not the 3.3 V pin, with a common ground.
 
 ## Controller firmware behaviour
 
